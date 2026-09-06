@@ -5,39 +5,64 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Présences — STA</title>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Manrope:wght@400;500;600&display=swap">
 <style>
   :root { color-scheme: light; }
   * { box-sizing: border-box; }
   body {
-    margin: 0; padding: 0; background: #f5f5f4; color: #1c1c1c;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    margin: 0; padding: 0; background: #04101c; color: #16202b;
+    font-family: 'Manrope', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  .bg-photo {
+    position: fixed; inset: 0; z-index: -2;
+    background-image: url(../assets/fond-plongeurs.jpg);
+    background-size: cover; background-position: center;
   }
   header {
-    background: #0b3d66; color: #fff; padding: 14px 16px;
-    font-size: 18px; font-weight: 600; position: sticky; top: 0; z-index: 5;
+    background: linear-gradient(180deg, rgba(3,12,22,0.6) 0%, rgba(3,12,22,0.32) 100%);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    color: #fff; padding: 16px 16px 14px 16px;
+    position: sticky; top: 0; z-index: 5;
+    text-shadow: 0 1px 6px rgba(0,0,0,.3);
   }
-  main { padding: 12px; padding-bottom: 90px; max-width: 480px; margin: 0 auto; }
+  header .eyebrow {
+    display: block; font-family: 'Space Grotesk', sans-serif; font-weight: 600;
+    font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase;
+    color: rgba(255,255,255,.82); margin-bottom: 2px;
+  }
+  header .titre {
+    display: block; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 21px;
+  }
+  main { padding: 14px; padding-bottom: 96px; max-width: 480px; margin: 0 auto; position: relative; z-index: 1; }
   .card {
-    background: #fff; border-radius: 10px; padding: 14px; margin-bottom: 12px;
-    box-shadow: 0 1px 3px rgba(0,0,0,.08);
+    background: rgba(255,255,255,0.55);
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    border: 1px solid rgba(255,255,255,0.45);
+    box-shadow: 0 8px 24px rgba(3,12,22,0.18);
+    border-radius: 14px; padding: 14px 16px; margin-bottom: 12px;
   }
   select, input[type=text] {
-    width: 100%; padding: 10px; font-size: 16px; border: 1px solid #ccc;
+    width: 100%; padding: 10px; font-size: 16px;
+    background: rgba(255,255,255,0.5); color: #16202b;
+    border: 1px solid rgba(255,255,255,0.6);
     border-radius: 8px; margin-top: 4px;
   }
-  label { font-size: 13px; color: #555; display: block; margin-top: 10px; }
+  label { font-size: 13px; color: rgba(22,32,43,0.65); display: block; margin-top: 10px; }
   .roster-item {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 10px 4px; border-bottom: 1px solid #eee;
+    padding: 10px 4px; border-bottom: 1px solid rgba(22,32,43,0.1);
   }
   .roster-item:last-child { border-bottom: none; }
   .roster-item button {
-    background: #0b3d66; color: #fff; border: none; border-radius: 6px;
+    background: #0f6e6a; color: #fff; border: none; border-radius: 6px;
     padding: 8px 12px; font-size: 14px;
   }
   .present-item {
-    background: #eef6ee; border: 1px solid #cde5cd; border-radius: 8px;
-    padding: 10px; margin-bottom: 8px;
+    background: rgba(255,255,255,0.55);
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    border: 1px solid rgba(255,255,255,0.45);
+    box-shadow: 0 8px 24px rgba(3,12,22,0.18);
+    border-radius: 14px; padding: 10px 14px; margin-bottom: 10px;
   }
   .present-item .top {
     display: flex; justify-content: space-between; align-items: center;
@@ -50,32 +75,37 @@
     margin-top: 6px; font-size: 14px; padding: 6px;
   }
   .present-item.invite {
-    background: #fdf3e7; border-color: #f0d9b5;
+    background: rgba(255,236,206,0.6); border-color: rgba(240,180,100,0.55);
   }
   .badge-invite, .tag-invite {
     display: inline-block; font-size: 11px; font-weight: 600; font-style: normal;
-    color: #92610f; background: #f7e0b8; border-radius: 4px;
+    color: #7a4a12; background: rgba(247,200,120,0.85); border-radius: 4px;
     padding: 2px 6px; margin-left: 6px; vertical-align: middle;
   }
   .fixed-bar {
-    position: fixed; bottom: 0; left: 0; right: 0; background: #fff;
-    padding: 12px 16px; box-shadow: 0 -2px 6px rgba(0,0,0,.1);
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: linear-gradient(180deg, rgba(3,12,22,0) 0%, rgba(3,12,22,0.6) 55%);
+    padding: 14px 16px 22px 16px; z-index: 5;
   }
   .fixed-bar button {
     width: 100%; padding: 14px; font-size: 16px; font-weight: 600;
-    background: #167a3c; color: #fff; border: none; border-radius: 8px;
+    background: #0f6e6a; color: #fff; border: none; border-radius: 10px;
+    box-shadow: 0 6px 18px rgba(3,12,22,0.3);
   }
-  .fixed-bar button:disabled { background: #999; }
-  #msg { font-size: 13px; margin-top: 6px; min-height: 18px; }
-  #msg.err { color: #a33; }
-  #msg.ok { color: #167a3c; }
+  .fixed-bar button:disabled { background: #7a8a86; }
+  #msg { font-size: 13px; margin-top: 6px; min-height: 18px; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.4); }
+  #msg.err { color: #ffb4b4; }
+  #msg.ok { color: #bdf0d8; }
   #signin { padding: 30px 16px; text-align: center; }
+  #signin p { color: #16202b; }
   #app { display: none; }
 </style>
 </head>
 <body>
 
-<header>Suivi des présences — STA — Apnée statique</header>
+
+<div class="bg-photo"></div>
+<header><span class="eyebrow">Suivi des présences</span><span class="titre">STA — Apnée statique</span></header>
 
 <main>
   <div id="signin" class="card">
