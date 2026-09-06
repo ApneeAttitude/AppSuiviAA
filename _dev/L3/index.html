@@ -179,7 +179,7 @@ window.onload = function () {
 };
 
 function chargerDonnees() {
-  fetch(WEB_APP_URL + '?action=data&cible=' + encodeURIComponent(CIBLE))
+  fetch(WEB_APP_URL + '?action=data&cible=' + encodeURIComponent(CIBLE), { cache: 'no-store' })
     .then(function (r) { return r.json(); })
     .then(function (d) {
       if (!d.ok) { afficherMessage(d.error, true); return; }
@@ -221,7 +221,7 @@ function ouvrirSeance() {
   render();
   var seanceId = document.getElementById('seance').value;
   fetch(WEB_APP_URL + '?action=fiche&cible=' + encodeURIComponent(CIBLE) +
-        '&seance=' + encodeURIComponent(seanceId))
+        '&seance=' + encodeURIComponent(seanceId), { cache: 'no-store' })
     .then(function (r) { return r.json(); })
     .then(function (d) {
       if (!d.ok) { afficherMessage(d.error, true); return; }

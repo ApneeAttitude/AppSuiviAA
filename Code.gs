@@ -9,6 +9,8 @@
 // getActiveSpreadsheet(), l'architecture d'origine de ce MVP) — c'est ce
 // qui rendait lent le prototype AppSuivi initial. Le gain de maintenance
 // (une seule URL, un seul code) l'emporte ici sur la vitesse perçue.
+// Pour limiter l'impact sur la vitesse perçue, les réponses de "data" et
+// "fiche" sont mises en cache (CacheService) — voir plus bas (06/09/2026).
 //
 // « cible » identifie quel classeur ouvrir : un couple environnement/ligne
 // (ex. "DEV-L2", "PROD-L3"), envoyé par le front à chaque appel. Le
@@ -20,16 +22,17 @@
 // fetch() classique sur son URL /exec — pas de souci de sandbox tant que
 // le front n'est pas lui-même servi par ce script via HtmlService.
 
+// Identifiants des GoogleSheet de chaque ligne
 var CLASSEURS = {
-  'DEV-L2':   '1wlmAwZwR0z4KNSnYiadXiLqQUv05IwRzIi8ERjmf0NI',
-  'DEV-L3':   '1Q1ZRnsUfbG0aW2KiSY7B3zI11H2TMQA9cbRm-S90acQ',
+  'DEV-L2':   '1ANbbV-lc9GZeVHQH8X4mFOaMKo4s8wB5TrnmX96WEko',
+  'DEV-L3':   '1gVjJxXIXzvfJUObElSu8D3dnFRHTNcCWemQH-JwDsRY',
   'TEST-L2':  'REMPLACER_PAR_ID_CLASSEUR_TEST_L2',
   'TEST-L3':  'REMPLACER_PAR_ID_CLASSEUR_TEST_L3',
-  'PROD-L1':  'REMPLACER_PAR_ID_CLASSEUR_PROD_L1',
-  'PROD-L2':  'REMPLACER_PAR_ID_CLASSEUR_PROD_L2',
-  'PROD-L3':  'REMPLACER_PAR_ID_CLASSEUR_PROD_L3',
-  'PROD-L4':  'REMPLACER_PAR_ID_CLASSEUR_PROD_L4',
-  'PROD-LC':  'REMPLACER_PAR_ID_CLASSEUR_PROD_LC',
+  'PROD-L1':  '1K2h_E7NaJwGuGiAZn_qqhoMHZGxbW39v-j1_j8x9Pf8',
+  'PROD-L2':  '1ANbbV-lc9GZeVHQH8X4mFOaMKo4s8wB5TrnmX96WEko',
+  'PROD-L3':  '1gVjJxXIXzvfJUObElSu8D3dnFRHTNcCWemQH-JwDsRY',
+  'PROD-L4':  '1_MSHANd4z8XDeh8d8CD7402AP_caSkBIaPbiwHIZLjQ',
+  'PROD-LC':  '1XCrHI4MRfhWnGljkul7XIlHteI5hjyCuvUYLi-HzOqg',
   'PROD-DNF': 'REMPLACER_PAR_ID_CLASSEUR_PROD_DNF',
   'PROD-STA': 'REMPLACER_PAR_ID_CLASSEUR_PROD_STA'
 };
@@ -37,6 +40,19 @@ var CLASSEURS = {
 var SHEET_CALENDRIER = 'Calendrier';
 var SHEET_PRESENCES = 'Presences';
 var SHEET_PERSONNES = 'Personnes';
+
+// Durées de cache (secondes) — CacheService, partagé entre toutes les
+// exécutions du script (donc entre tous les appareils). "data" (roster +
+// calendrier) ne change que par une modification manuelle du classeur
+// (saisie de saison, ajout d'un adhérent) : un léger délai d'affichage
+// après une telle modif est un compromis acceptable pour un chargement
+// quasi instantané le reste du temps (demande du 06/09/2026 : "le
+// chargement des data est lent"). "fiche" (présences d'une séance) est
+// recalculée et remise en cache immédiatement après chaque enregistrement
+// (cf. savePresences_) : le TTL ne sert donc qu'à couvrir une modif faite
+// directement dans le Sheet, jamais un enregistrement fait depuis l'appli.
+var CACHE_TTL_DONNEES = 120;
+var CACHE_TTL_FICHE = 60;
 
 function ouvrirClasseur_(cible) {
   if (!cible) throw new Error('cible manquante (environnement/ligne)');
@@ -50,10 +66,14 @@ function ouvrirClasseur_(cible) {
 
 function doGet(e) {
   var action = e.parameter.action;
+  var cible = e.parameter.cible;
   try {
-    var ss = ouvrirClasseur_(e.parameter.cible);
-    if (action === 'data') return jsonOut_(getData_(ss));
-    if (action === 'fiche') return jsonOut_(lirePresences_(ss, e.parameter.seance));
+    if (action === 'data') {
+      return jsonOut_(getData_(cible));
+    }
+    if (action === 'fiche') {
+      return jsonOut_(lirePresences_(cible, e.parameter.seance));
+    }
     return jsonOut_({ ok: false, error: 'action inconnue : ' + action });
   } catch (err) {
     return jsonOut_({ ok: false, error: String(err) });
@@ -67,8 +87,7 @@ function doPost(e) {
     // qu'Apps Script Web App ne sait pas traiter. On parse le JSON
     // nous-mêmes depuis le corps texte brut.
     var body = JSON.parse(e.postData.contents);
-    var ss = ouvrirClasseur_(body.cible);
-    if (body.action === 'saveSeance') return jsonOut_(savePresences_(ss, body));
+    if (body.action === 'saveSeance') return jsonOut_(savePresences_(body));
     return jsonOut_({ ok: false, error: 'action inconnue : ' + body.action });
   } catch (err) {
     return jsonOut_({ ok: false, error: String(err) });
@@ -99,8 +118,19 @@ function verifierJeton_(idToken) {
 }
 
 // --- Lecture ----------------------------------------------------------------
-function getData_(ss) {
-  return { ok: true, roster: lirePersonnes_(ss), seances: lireCalendrier_(ss) };
+// Réponse mise en cache (roster + séances) : évite de rouvrir le classeur
+// (SpreadsheetApp.openById(), 1 à 2,5 s) à chaque rechargement de la page
+// pendant la durée du cache (demande du 06/09/2026, cf. CACHE_TTL_DONNEES).
+function getData_(cible) {
+  var cache = CacheService.getScriptCache();
+  var cle = 'v2|' + cible + '|data';
+  var brut = cache.get(cle);
+  if (brut) return JSON.parse(brut);
+
+  var ss = ouvrirClasseur_(cible);
+  var resultat = { ok: true, roster: lirePersonnes_(ss), seances: lireCalendrier_(ss) };
+  cache.put(cle, JSON.stringify(resultat), CACHE_TTL_DONNEES);
+  return resultat;
 }
 
 // Colonnes de l'onglet Personnes (1-based, cf. build_suivi.py) :
@@ -110,17 +140,38 @@ function getData_(ss) {
 // l'indicateur "membre" : permet au front de proposer un "invité"
 // (personne connue du classeur mais pas de cette ligne) et de l'afficher
 // differemment (demande du 07/09/2026).
+// Une même personne peut apparaître sur plusieurs lignes du même classeur
+// (même id en colonne B) quand elle a plusieurs rôles dans la ligne, par
+// exemple élève ET encadrant (cas Sandry Wallon en L3) : on ne garde
+// qu'une seule entrée par id, en préférant la ligne "élève" quand elle
+// existe (demande du 06/09/2026 — l'encadrant n'a pas à apparaître comme
+// participant, il est déjà identifié comme tel dans le calendrier).
 function lirePersonnes_(ss) {
   var sh = ss.getSheetByName(SHEET_PERSONNES);
   var values = sh.getDataRange().getValues();
-  var out = [];
+  var parId = {};
+  var ordre = [];
   for (var r = 4; r < values.length; r++) {          // ligne 5 = 1ere donnee
     var row = values[r];
-    if (row[1]) {
-      out.push({ id: row[1], nom: row[2], prenom: row[3], membre: row[7] === 'oui' });
+    if (!row[1]) continue;
+    var id = row[1];
+    var candidat = {
+      id: id, nom: row[2], prenom: row[3],
+      role: String(row[4] || '').toLowerCase().trim(),
+      membre: row[7] === 'oui'
+    };
+    var existant = parId[id];
+    if (!existant) {
+      parId[id] = candidat;
+      ordre.push(id);
+    } else if (existant.role !== 'élève' && candidat.role === 'élève') {
+      parId[id] = candidat;
     }
   }
-  return out;
+  return ordre.map(function (id) {
+    var p = parId[id];
+    return { id: p.id, nom: p.nom, prenom: p.prenom, membre: p.membre };
+  });
 }
 
 // Fenêtre glissante de séances chargées par l'app : pas la peine de charger
@@ -175,11 +226,26 @@ function lireCalendrier_(ss) {
   return out;
 }
 
+// Réponse mise en cache (présences d'une séance) : voir CACHE_TTL_FICHE.
+// Toujours rafraîchie explicitement par savePresences_ juste après un
+// enregistrement, donc jamais périmée pour ce que fait l'appli elle-même.
+function lirePresences_(cible, seanceId) {
+  if (!seanceId) throw new Error('seance manquante');
+  var cache = CacheService.getScriptCache();
+  var cle = 'v2|' + cible + '|fiche|' + seanceId;
+  var brut = cache.get(cle);
+  if (brut) return JSON.parse(brut);
+
+  var ss = ouvrirClasseur_(cible);
+  var resultat = calculerFiche_(ss, seanceId);
+  cache.put(cle, JSON.stringify(resultat), CACHE_TTL_FICHE);
+  return resultat;
+}
+
 // Colonnes de l'onglet Presences : A id seance, B selection (saisie
 // manuelle, non utilisee par l'app), C apneiste id, D nom, E prenom,
 // F qualite, G observation, H controle (formule, non touchee par l'app).
-function lirePresences_(ss, seanceId) {
-  if (!seanceId) throw new Error('seance manquante');
+function calculerFiche_(ss, seanceId) {
   var values = ss.getSheetByName(SHEET_PRESENCES).getDataRange().getValues();
   var presences = [];
   for (var r = 4; r < values.length; r++) {
@@ -202,10 +268,11 @@ function lirePresences_(ss, seanceId) {
 // F (qualité) et G (observation), pour ne jamais abîmer une formule ou une
 // couleur du modèle (06/09/2026 — avant, une réécriture complète du
 // classeur en valeurs plates finissait par écraser les formules).
-function savePresences_(ss, body) {
+function savePresences_(body) {
   var email = verifierJeton_(body.idToken);
   var seanceId = body.seance_id;
   if (!seanceId) throw new Error('seance_id manquant');
+  var ss = ouvrirClasseur_(body.cible);
 
   var roster = {};
   lirePersonnes_(ss).forEach(function (p) { roster[p.id] = p; });
@@ -250,6 +317,14 @@ function savePresences_(ss, body) {
     sh.getRange(r2, 1, 1, 2).clearContent();
     sh.getRange(r2, 6, 1, 2).clearContent();
   }
+
+  // rafraîchit immédiatement le cache "fiche" de cette séance : la
+  // prochaine lecture (même appareil ou un autre) voit tout de suite le
+  // résultat de cet enregistrement, sans attendre l'expiration du TTL
+  // (demande du 06/09/2026).
+  var cache = CacheService.getScriptCache();
+  cache.put('v2|' + body.cible + '|fiche|' + seanceId,
+            JSON.stringify(calculerFiche_(ss, seanceId)), CACHE_TTL_FICHE);
 
   return { ok: true, saved: presences.length, par: email };
 }
