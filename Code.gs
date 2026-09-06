@@ -106,14 +106,18 @@ function getData_(ss) {
 // Colonnes de l'onglet Personnes (1-based, cf. build_suivi.py) :
 // A code, B id, C nom, D prenom, E role declare, F groupe(s), G objectif,
 // H membre de la ligne ("oui"/"")...
+// Renvoie TOUT le monde (pas seulement les membres de la ligne), avec
+// l'indicateur "membre" : permet au front de proposer un "invité"
+// (personne connue du classeur mais pas de cette ligne) et de l'afficher
+// differemment (demande du 07/09/2026).
 function lirePersonnes_(ss) {
   var sh = ss.getSheetByName(SHEET_PERSONNES);
   var values = sh.getDataRange().getValues();
   var out = [];
   for (var r = 4; r < values.length; r++) {          // ligne 5 = 1ere donnee
     var row = values[r];
-    if (row[1] && row[7] === 'oui') {
-      out.push({ id: row[1], nom: row[2], prenom: row[3] });
+    if (row[1]) {
+      out.push({ id: row[1], nom: row[2], prenom: row[3], membre: row[7] === 'oui' });
     }
   }
   return out;
@@ -142,6 +146,7 @@ function lireCalendrier_(ss) {
   var finFenetre = new Date(debutSemaineEnCours);
   finFenetre.setDate(finFenetre.getDate() + 14);       // lundi, 2 semaines après (exclusif)
 
+  var tz = Session.getScriptTimeZone();
   var sh = ss.getSheetByName(SHEET_CALENDRIER);
   var values = sh.getDataRange().getValues();
   var out = [];
@@ -149,18 +154,24 @@ function lireCalendrier_(ss) {
     var row = values[r];
     if (!row[0]) continue;
     var d = row[1];
-    if (Object.prototype.toString.call(d) === '[object Date]' &&
-        (d < debutFenetre || d >= finFenetre)) {
+    var estDate = Object.prototype.toString.call(d) === '[object Date]';
+    if (estDate && (d < debutFenetre || d >= finFenetre)) {
       continue; // hors fenêtre : on ne charge pas cette séance
     }
     out.push({
       id: row[0],
       date: formatDate_(row[1]),
+      date_iso: estDate ? Utilities.formatDate(d, tz, 'yyyy-MM-dd') : '',
       jour: row[2],
       creneau: row[3],
       statut: row[8] || 'planifiée'
     });
   }
+  // tri chronologique croissant : la plus ancienne en premier (demande du
+  // 07/09/2026) — le front n'a plus besoin d'inverser l'ordre lui-meme.
+  out.sort(function (a, b) {
+    return a.date_iso < b.date_iso ? -1 : (a.date_iso > b.date_iso ? 1 : 0);
+  });
   return out;
 }
 
