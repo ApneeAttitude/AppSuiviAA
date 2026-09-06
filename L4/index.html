@@ -69,8 +69,10 @@
     font-weight: 600;
   }
   .present-item .top button {
-    background: none; border: none; color: #a33; font-size: 14px;
+    background: none; border: none; color: rgba(22,32,43,0.55); font-size: 22px;
+    line-height: 1; padding: 0 2px; cursor: pointer;
   }
+  .present-item .top button:hover { color: #a33; }
   .present-item select, .present-item input {
     margin-top: 6px; font-size: 14px; padding: 6px;
   }
@@ -166,7 +168,8 @@ function handleCredentialResponse(resp) {
 window.onload = function () {
   google.accounts.id.initialize({
     client_id: GOOGLE_CLIENT_ID,
-    callback: handleCredentialResponse
+    callback: handleCredentialResponse,
+    auto_select: true
   });
   google.accounts.id.renderButton(
     document.getElementById('g_id_signin'),
@@ -274,7 +277,7 @@ function render() {
     div.innerHTML =
       '<div class="top"><span>' + p.prenom + ' ' + p.nom +
       (estInvite ? ' <span class="badge-invite">invité</span>' : '') + '</span>' +
-      '<button data-id="' + id + '" class="retirer">Retirer</button></div>' +
+      '<button data-id="' + id + '" class="retirer" aria-label="Retirer">&times;</button></div>' +
       '<select data-id="' + id + '" class="qualite">' +
         '<option value="">Qualité (facultatif)</option>' +
         '<option value="en difficulté"' + (p.qualite === 'en difficulté' ? ' selected' : '') + '>en difficulté</option>' +
