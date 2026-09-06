@@ -48,6 +48,8 @@
     border-radius: 8px; margin-top: 4px;
   }
   label { font-size: 13px; color: rgba(22,32,43,0.65); display: block; margin-top: 10px; }
+  .encadrant-info { font-size: 13px; color: rgba(22,32,43,0.75); margin-top: 8px; min-height: 16px; }
+  .encadrant-info strong { color: #0f6e6a; }
   .roster-item {
     display: flex; align-items: center; justify-content: space-between;
     padding: 10px 4px; border-bottom: 1px solid rgba(22,32,43,0.1);
@@ -119,6 +121,7 @@
     <div class="card">
       <label for="seance">Séance</label>
       <select id="seance"></select>
+      <div id="encadrant" class="encadrant-info"></div>
     </div>
 
     <div class="card">
@@ -197,7 +200,8 @@ function remplirSeances() {
   seances.forEach(function (s) {
     var opt = document.createElement('option');
     opt.value = s.id;
-    opt.textContent = s.jour + ' ' + s.date + ' — ' + s.creneau + ' [' + s.statut + ']';
+    var horaire = (s.heure_debut && s.heure_fin) ? (s.heure_debut + ' - ' + s.heure_fin) : '';
+    opt.textContent = s.numero + ' . ' + s.jour + ' ' + s.date + (horaire ? ' . ' + horaire : '');
     sel.appendChild(opt);
   });
   sel.onchange = ouvrirSeance;
@@ -215,10 +219,24 @@ function remplirSeances() {
   }
 }
 
+// Encadrant de la seance selectionnee : le remplacant s'il est precise
+// dans le Calendrier, sinon l'encadrant habituel du creneau — deduit
+// cote serveur (Code.gs), affiche tel quel ici (demande du 07/09/2026).
+function afficherEncadrant() {
+  var s = seances.filter(function (x) { return x.id === document.getElementById('seance').value; })[0];
+  var el = document.getElementById('encadrant');
+  if (s && (s.encadrant_prenom || s.encadrant_nom)) {
+    el.innerHTML = 'Encadrant : <strong>' + (s.encadrant_prenom + ' ' + s.encadrant_nom).trim() + '</strong>';
+  } else {
+    el.textContent = '';
+  }
+}
+
 function ouvrirSeance() {
   presents = {};
   presentsOrder = [];
   render();
+  afficherEncadrant();
   var seanceId = document.getElementById('seance').value;
   fetch(WEB_APP_URL + '?action=fiche&cible=' + encodeURIComponent(CIBLE) +
         '&seance=' + encodeURIComponent(seanceId), { cache: 'no-store' })

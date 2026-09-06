@@ -188,8 +188,17 @@ function debutSemaine_(date) {
   return d;
 }
 
-// Colonnes de l'onglet Calendrier : A id seance, B date, C jour,
-// D creneau (libelle), ... I statut.
+// Colonnes de l'onglet Calendrier (cf. build_suivi.py, onglet Calendrier) :
+// A id seance, B date, C jour, D creneau (libelle), ... I statut,
+// ... N responsable remplacant (debut du nom), O responsable (id),
+// P resp. - nom, Q resp. - prenom. Les colonnes O/P/Q resolvent deja,
+// par formule dans le classeur, le remplacant s'il est saisi en N, sinon
+// l'encadrant habituel du creneau — Code.gs n'a rien a arbitrer ici.
+function extraireHoraire_(creneau) {
+  var m = /(\d{1,2}h\d{2})\s*-\s*(\d{1,2}h\d{2})/.exec(creneau || '');
+  return m ? { debut: m[1], fin: m[2] } : { debut: '', fin: '' };
+}
+
 function lireCalendrier_(ss) {
   var debutSemaineEnCours = debutSemaine_(new Date());
   var debutFenetre = new Date(debutSemaineEnCours);
@@ -209,12 +218,20 @@ function lireCalendrier_(ss) {
     if (estDate && (d < debutFenetre || d >= finFenetre)) {
       continue; // hors fenêtre : on ne charge pas cette séance
     }
+    var horaire = extraireHoraire_(row[3]);
     out.push({
       id: row[0],
+      numero: String(row[0] || '').split(' — ')[0],
       date: formatDate_(row[1]),
       date_iso: estDate ? Utilities.formatDate(d, tz, 'yyyy-MM-dd') : '',
       jour: row[2],
       creneau: row[3],
+      heure_debut: horaire.debut,
+      heure_fin: horaire.fin,
+      // colonnes P/Q : deja resolues cote classeur (remplacant saisi en N,
+      // sinon encadrant habituel du creneau) — cf. build_suivi.py write_calendrier_row.
+      encadrant_nom: row[15] || '',
+      encadrant_prenom: row[16] || '',
       statut: row[8] || 'planifiée'
     });
   }
