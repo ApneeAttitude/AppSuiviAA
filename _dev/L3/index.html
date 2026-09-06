@@ -147,7 +147,7 @@
 // chaque palier a donc SA PROPRE URL /exec, partagée seulement entre les
 // lignes de ce même palier. Le paramétrage cible -> classeur se trouve
 // dans Code.gs (objet CLASSEURS), pas ici.
-var WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxvWAHpfectIX8IwABmV6ktNSFHZotEQEaNdjjHSvvogl1GJZkn5YBJvtHF3fe7W458Ww/exec";
+var WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzctYJp4EH18H7hgXlTgqC9UElaCkNAlx5l_ZgkEj6DTDW8-Kluma5rPjdYnvnJvRyuqA/exec";
 var GOOGLE_CLIENT_ID = "490347116418-0outack1od53036gfeca2enatbopogfm.apps.googleusercontent.com";
 var CIBLE = "DEV-L3";
 // -------------------------------------------------------------------------
@@ -156,6 +156,7 @@ var idToken = null;
 var roster = [];
 var seances = [];
 var presents = {};   // apneiste_id -> {id, nom, prenom, qualite, observation}
+var presentsOrder = [];  // ordre d'affichage : dernier ajoute en tete (demande du 06/09/2026)
 
 function handleCredentialResponse(resp) {
   idToken = resp.credential;
@@ -216,6 +217,7 @@ function remplirSeances() {
 
 function ouvrirSeance() {
   presents = {};
+  presentsOrder = [];
   render();
   var seanceId = document.getElementById('seance').value;
   fetch(WEB_APP_URL + '?action=fiche&cible=' + encodeURIComponent(CIBLE) +
@@ -230,6 +232,7 @@ function ouvrirSeance() {
         var ref = roster.filter(function (r) { return r.id === p.apneiste_id; })[0];
         p.membre = ref ? ref.membre !== false : true;
         presents[p.apneiste_id] = p;
+        presentsOrder.push(String(p.apneiste_id));
       });
       render();
     });
@@ -254,6 +257,7 @@ document.getElementById('recherche').addEventListener('input', function (e) {
     btn.onclick = function () {
       presents[p.id] = { apneiste_id: p.id, nom: p.nom, prenom: p.prenom,
                          membre: p.membre !== false, qualite: '', observation: '' };
+      presentsOrder.unshift(String(p.id));   // ajout en tete de liste (demande du 06/09/2026)
       document.getElementById('recherche').value = '';
       box.innerHTML = '';
       render();
@@ -267,7 +271,7 @@ function render() {
   var wrap = document.getElementById('presents');
   var vide = document.getElementById('vide');
   wrap.innerHTML = '';
-  var ids = Object.keys(presents);
+  var ids = presentsOrder;
   vide.style.display = ids.length ? 'none' : 'block';
   ids.forEach(function (id) {
     var p = presents[id];
@@ -289,7 +293,11 @@ function render() {
     wrap.appendChild(div);
   });
   wrap.querySelectorAll('.retirer').forEach(function (b) {
-    b.onclick = function () { delete presents[b.dataset.id]; render(); };
+    b.onclick = function () {
+      delete presents[b.dataset.id];
+      presentsOrder = presentsOrder.filter(function (x) { return x !== b.dataset.id; });
+      render();
+    };
   });
   wrap.querySelectorAll('.qualite').forEach(function (s) {
     s.onchange = function () { presents[s.dataset.id].qualite = s.value; };
@@ -308,7 +316,7 @@ document.getElementById('btnSave').addEventListener('click', function () {
     cible: CIBLE,
     idToken: idToken,
     seance_id: document.getElementById('seance').value,
-    presences: Object.keys(presents).map(function (id) {
+    presences: presentsOrder.map(function (id) {
       var p = presents[id];
       return { apneiste_id: id, present: true, qualite: p.qualite, observation: p.observation };
     })
