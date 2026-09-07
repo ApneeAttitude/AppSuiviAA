@@ -301,10 +301,10 @@ function render() {
       (estInvite ? ' <span class="badge-invite">invité</span>' : '') + '</span>' +
       '<button data-id="' + id + '" class="retirer" aria-label="Retirer">&times;</button></div>' +
       '<select data-id="' + id + '" class="qualite">' +
-        '<option value="">Qualité (facultatif)</option>' +
-        '<option value="en difficulté"' + (p.qualite === 'en difficulté' ? ' selected' : '') + '>en difficulté</option>' +
-        '<option value="conforme"' + (p.qualite === 'conforme' ? ' selected' : '') + '>conforme</option>' +
-        '<option value="à l\'aise"' + (p.qualite === "à l'aise" ? ' selected' : '') + '>à l\'aise</option>' +
+        '<option value="">Zone de confort (facultatif)</option>' +
+        '<option value="Hors zone"' + (p.qualite === 'Hors zone' ? ' selected' : '') + '>Hors zone</option>' +
+        '<option value="En limite"' + (p.qualite === 'En limite' ? ' selected' : '') + '>En limite</option>' +
+        '<option value="Dans la zone"' + (p.qualite === 'Dans la zone' ? ' selected' : '') + '>Dans la zone</option>' +
       '</select>' +
       '<input type="text" data-id="' + id + '" class="observation" placeholder="Observation (facultatif)" value="' +
         (p.observation || '').replace(/"/g, '&quot;') + '">';
