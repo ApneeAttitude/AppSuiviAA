@@ -232,6 +232,9 @@ function lireCalendrier_(ss) {
       // sinon encadrant habituel du creneau) — cf. build_suivi.py write_calendrier_row.
       encadrant_nom: row[15] || '',
       encadrant_prenom: row[16] || '',
+      // colonne R : Plan de séance (texte ou lien), saisi depuis l'appli
+      // (accordéon repliable — demande du 07/09/2026).
+      plan: row[17] || '',
       statut: row[8] || 'planifiée'
     });
   }
@@ -285,6 +288,23 @@ function calculerFiche_(ss, seanceId) {
 // F (qualité) et G (observation), pour ne jamais abîmer une formule ou une
 // couleur du modèle (06/09/2026 — avant, une réécriture complète du
 // classeur en valeurs plates finissait par écraser les formules).
+// Écrit le plan de séance (colonne R de Calendrier) pour la séance
+// seanceId. Appelée depuis savePresences_ : un seul bouton "Enregistrer
+// la séance" côté front, qui couvre présences + plan de séance (demande
+// du 07/09/2026 — pas de bouton d'enregistrement séparé pour le plan).
+// undefined/null : le front n'a rien envoyé (accordéon non touché) — on
+// ne touche pas la cellule pour ne jamais écraser une valeur existante
+// avec une chaîne vide par accident.
+function ecrirePlanSeance_(ss, seanceId, plan) {
+  if (plan === undefined || plan === null) return;
+  var sh = ss.getSheetByName(SHEET_CALENDRIER);
+  var nRows = sh.getLastRow() - 4;
+  var idCol = sh.getRange(5, 1, nRows, 1).getValues().map(function (r) { return r[0]; });
+  var idx = idCol.indexOf(seanceId);
+  if (idx === -1) throw new Error('séance introuvable dans Calendrier : ' + seanceId);
+  sh.getRange(5 + idx, 18).setValue(plan); // colonne R
+}
+
 function savePresences_(body) {
   var email = verifierJeton_(body.idToken);
   var seanceId = body.seance_id;
@@ -335,6 +355,8 @@ function savePresences_(body) {
     sh.getRange(r2, 6, 1, 2).clearContent();
   }
 
+  ecrirePlanSeance_(ss, seanceId, body.plan_seance);
+
   // rafraîchit immédiatement le cache "fiche" de cette séance : la
   // prochaine lecture (même appareil ou un autre) voit tout de suite le
   // résultat de cet enregistrement, sans attendre l'expiration du TTL
@@ -342,6 +364,10 @@ function savePresences_(body) {
   var cache = CacheService.getScriptCache();
   cache.put('v2|' + body.cible + '|fiche|' + seanceId,
             JSON.stringify(calculerFiche_(ss, seanceId)), CACHE_TTL_FICHE);
+  // le plan de séance fait partie de la réponse "data" (lireCalendrier_) :
+  // on invalide ce cache aussi, sinon le prochain chargement de la page
+  // renverrait encore l'ancien plan pendant CACHE_TTL_DONNEES.
+  cache.remove('v2|' + body.cible + '|data');
 
   return { ok: true, saved: presences.length, par: email };
 }
@@ -356,4 +382,251 @@ function formatDate_(v) {
     return Utilities.formatDate(v, Session.getScriptTimeZone(), 'dd/MM/yyyy');
   }
   return String(v || '');
+}
+// ============================================================================
+// Synchronisation des effectifs depuis le classeur de Paramétrage centralisé
+// ----------------------------------------------------------------------------
+// Principe validé le 06/09/2026 avec Fred : les affectations aux lignes
+// (Inscriptions) sont saisies UNE SEULE FOIS dans le classeur de Paramétrage
+// (Google Sheet), puis propagées ici vers l'onglet Personnes de chaque
+// classeur de ligne — sans ressaisie, sans lien Excel fragile entre fichiers.
+//
+// Portée de cette première version : uniquement l'onglet Personnes (colonnes
+// C à G : Nom, Prénom, Rôle déclaré, Groupe(s), Objectif de la saison). Les
+// colonnes A (Code) et H (Membre de la ligne) restent des formules propres à
+// chaque classeur, jamais touchées ici — elles se recalculent seules.
+//
+// Cette même logique existe déjà, testée, dans generateurs/sync_referentiel.py
+// (variante hors ligne, sur fichiers .xlsx locaux) : ce bloc en est le
+// portage fidèle pour des classeurs qui sont maintenant des Google Sheets.
+// La synchronisation du Référentiel (Objectifs, Compétences, Créneaux,
+// Responsables, Qualifications Sécurité) et l'initialisation du Calendrier,
+// que sync_referentiel.py fait aussi, ne sont PAS encore portées ici : leur
+// mise en page dans les classeurs de ligne actuellement déployés n'a pas été
+// vérifiée ligne à ligne, contrairement à Personnes. À faire dans un second
+// temps, après vérification.
+//
+// Identifiant du classeur de Paramétrage centralisé (Google Sheet, racine de
+// Mon Drive). À mettre à jour si ce classeur est un jour recréé ailleurs.
+var ID_PARAMETRAGE = '18vMX5fqFgCN7NrSkPsSr1ftVoonPFC5xEbjf73iM8Lw';
+
+// Lignes à synchroniser : seules celles réellement configurées dans
+// CLASSEURS (PROD-*) ci-dessus. DNF et STA ne le sont pas encore.
+var LIGNES_SYNC = ['L1', 'L2', 'L3', 'L4', 'LC'];
+
+// ---------------------------------------------------------- lecture Parametrage
+// Lit tout ce qu'il faut du classeur de Paramétrage : le référentiel des
+// personnes du club (Personnes) et les affectations aux lignes (Inscriptions,
+// filtrées sur les inscriptions actives de la saison en cours). Contrairement
+// à sync_referentiel.py (qui lit un fichier .xlsx figé avec openpyxl et doit
+// donc composer avec des formules non recalculées), Apps Script recalcule
+// toujours les formules à la lecture : pas besoin de repli sur l'identifiant
+// entre crochets d'une sélection.
+function lireParametrage_() {
+  var ssp = SpreadsheetApp.openById(ID_PARAMETRAGE);
+
+  // Saison courante déduite du nom du classeur (« AA - Parametrage 2026-2027 »)
+  // plutôt que codée en dur : pas de modification de script à chaque saison.
+  var mSaison = /(\d{4}-\d{4})/.exec(ssp.getName());
+  var saison = mSaison ? mSaison[1] : '';
+
+  var personnes = {};
+  var ordreClub = [];
+  var vp = ssp.getSheetByName('Personnes').getDataRange().getValues();
+  for (var r = 4; r < vp.length; r++) {           // ligne 5 = première donnée
+    var pid = vp[r][0];
+    if (!pid) continue;
+    personnes[pid] = { id: pid, nom: vp[r][1], prenom: vp[r][2] };
+    ordreClub.push(pid);
+  }
+
+  var aujourdhui = new Date();
+  aujourdhui.setHours(0, 0, 0, 0);
+
+  var vi = ssp.getSheetByName('Inscriptions').getDataRange().getValues();
+  var inscriptions = [];
+  for (var r2 = 4; r2 < vi.length; r2++) {
+    var row = vi[r2];
+    var pidI = row[2];                            // colonne C : Personne (ID)
+    if (!pidI) continue;
+    var saisonRow = row[0];                       // colonne A : Saison
+    if (saisonRow && saison && saisonRow !== saison) continue;
+    var fin = (row[9] instanceof Date) ? row[9] : null;   // colonne J : Date de fin
+    inscriptions.push({
+      id: pidI,
+      groupe: row[5],                              // colonne F : Groupe de niveau
+      role: row[6],                                // colonne G : Rôle
+      objectif: row[10] || '',                     // colonne K : Objectif de la saison
+      fin: fin
+    });
+  }
+
+  function estActive(x) { return !x.fin || x.fin >= aujourdhui; }
+
+  // Les membres de LC (compétition) sont aussi membres de L4 : une personne
+  // active en LC sans inscription L4 active reçoit une inscription L4/élève
+  // synthétique, en mémoire seulement (rien n'est écrit dans Paramétrage),
+  // pour que le roster de L4 les intègre automatiquement — même règle que
+  // sync_referentiel.py (décision du 06/09/2026).
+  var lcActifs = {}, l4Actifs = {};
+  inscriptions.forEach(function (x) {
+    if (!estActive(x)) return;
+    if (x.groupe === 'LC') lcActifs[x.id] = true;
+    if (x.groupe === 'L4') l4Actifs[x.id] = true;
+  });
+  Object.keys(lcActifs).sort().forEach(function (pid) {
+    if (!l4Actifs[pid]) {
+      inscriptions.push({ id: pid, groupe: 'L4', role: 'élève', objectif: '', fin: null });
+    }
+  });
+
+  return { saison: saison, personnes: personnes, ordreClub: ordreClub,
+           inscriptions: inscriptions, estActive: estActive };
+}
+
+// Toutes les inscriptions actives (aujourd'hui) d'une personne, tous groupes
+// confondus — alimente la colonne « Groupe(s) », club entier.
+function groupesActifs_(par, pid) {
+  var groupes = {};
+  par.inscriptions.forEach(function (x) {
+    if (x.id === pid && x.groupe && par.estActive(x)) groupes[x.groupe] = true;
+  });
+  return Object.keys(groupes).sort().join(' / ');
+}
+
+// Dernière ligne, à partir de `first`, où la colonne `col` porte une formule
+// (et non une simple valeur ou une cellule vide) — sert à savoir jusqu'où les
+// formules Code/Membre sont déjà provisionnées dans l'onglet Personnes d'un
+// classeur de ligne, sans supposer une capacité fixe.
+function derniereLigneFormule_(sh, col, first, maxScan) {
+  var n = Math.min(maxScan, sh.getMaxRows() - first + 1);
+  if (n <= 0) return first - 1;
+  var formules = sh.getRange(first, col, n, 1).getFormulas();
+  var last = first - 1;
+  for (var i = 0; i < formules.length; i++) {
+    if (formules[i][0]) last = first + i;
+  }
+  return last;
+}
+
+// -------------------------------------------------- synchronisation d'une ligne
+function synchroniserPersonnesLigne_(par, ligne) {
+  var ss = ouvrirClasseur_('PROD-' + ligne);
+  var sh = ss.getSheetByName(SHEET_PERSONNES);
+  var PERS_FIRST_L = 5;
+
+  // 1. Ordre déjà en place (colonnes B ID, E Rôle), avant toute écriture —
+  //    c'est ce qui permet de préserver la position (donc le Code, colonne A)
+  //    des personnes déjà connues. Jamais d'insertion au milieu : les
+  //    nouvelles arrivées sont ajoutées à la fin (même règle que
+  //    sync_referentiel.py — un « 7 » tapé en octobre ne doit pas désigner
+  //    quelqu'un d'autre en mars).
+  var lastRowActuelle = sh.getLastRow();
+  var ordreExistant = [];
+  if (lastRowActuelle >= PERS_FIRST_L) {
+    var existant = sh.getRange(PERS_FIRST_L, 2, lastRowActuelle - PERS_FIRST_L + 1, 4).getValues();
+    existant.forEach(function (row) {
+      var pid = row[0];                            // colonne B
+      if (pid) ordreExistant.push([pid, row[3] || '']);  // colonne E (index 3 de la plage)
+    });
+  }
+
+  // 2. Inscriptions actives dans CETTE ligne : une entrée par (personne, rôle)
+  //    — une personne à la fois élève et encadrante dans la même ligne y
+  //    apparaît deux fois, jamais un rôle agrégé (même règle que
+  //    sync_referentiel.py, décision du 06/09/2026).
+  var parCle = {};      // clé "id|role" -> inscription
+  par.inscriptions.forEach(function (x) {
+    if (x.groupe !== ligne || !par.estActive(x) || !par.personnes[x.id]) return;
+    var cle = x.id + '|' + x.role;
+    if (!parCle[cle]) parCle[cle] = x;
+  });
+  var clesActuelles = Object.keys(parCle);
+  var clesSet = {};
+  clesActuelles.forEach(function (c) { clesSet[c] = true; });
+
+  var connues = [], dejaVu = {};
+  ordreExistant.forEach(function (pair) {
+    var cle = pair[0] + '|' + pair[1];
+    if (clesSet[cle] && !dejaVu[cle]) { connues.push(cle); dejaVu[cle] = true; }
+  });
+  var nouvelles = clesActuelles.filter(function (c) { return !dejaVu[c]; });
+  nouvelles.sort(function (a, b) {
+    var xa = parCle[a], xb = parCle[b];
+    var na = (par.personnes[xa.id].nom + par.personnes[xa.id].prenom + xa.role).toUpperCase();
+    var nb = (par.personnes[xb.id].nom + par.personnes[xb.id].prenom + xb.role).toUpperCase();
+    return na < nb ? -1 : (na > nb ? 1 : 0);
+  });
+  var membres = connues.concat(nouvelles);
+  var membresPids = {};
+  membres.forEach(function (c) { membresPids[parCle[c].id] = true; });
+
+  // 3. Le reste du club, sans rôle dans cette ligne : présent quand même
+  //    (un encadrant n'est pas nécessairement inscrit dans la ligne qu'il
+  //    encadre — l'onglet Personnes porte tout le club).
+  var autres = par.ordreClub.filter(function (pid) { return !membresPids[pid]; });
+
+  var ordre = membres.map(function (c) { return { pid: parCle[c].id, x: parCle[c] }; })
+    .concat(autres.map(function (pid) { return { pid: pid, x: null }; }));
+
+  // 4. S'assurer que les formules Code/Membre (colonnes A et H) couvrent
+  //    assez de lignes pour tout le monde : si le club a grandi au-delà de
+  //    la capacité déjà provisionnée dans ce classeur, on prolonge les
+  //    formules par recopie de la dernière ligne formulée — jamais de
+  //    capacité supposée à l'avance.
+  var maxScan = 1000;
+  var derniereA = derniereLigneFormule_(sh, 1, PERS_FIRST_L, maxScan);
+  var derniereH = derniereLigneFormule_(sh, 8, PERS_FIRST_L, maxScan);
+  var capaciteActuelle = Math.max(derniereA, derniereH, PERS_FIRST_L - 1) - PERS_FIRST_L + 1;
+  if (ordre.length > capaciteActuelle && capaciteActuelle > 0) {
+    var manquantes = ordre.length - capaciteActuelle;
+    var deLigne = PERS_FIRST_L + capaciteActuelle - 1;   // dernière ligne déjà formulée
+    sh.getRange(deLigne, 1).copyTo(
+      sh.getRange(deLigne + 1, 1, manquantes, 1));
+    sh.getRange(deLigne, 8).copyTo(
+      sh.getRange(deLigne + 1, 8, manquantes, 1));
+    capaciteActuelle = ordre.length;
+  }
+
+  // 5. Effacer puis réécrire les colonnes C à G (jamais A ni H) sur toute la
+  //    plage couverte par les formules (au moins ordre.length, au moins
+  //    l'ancienne étendue, pour ne pas laisser de lignes fantômes si le club
+  //    a rétréci).
+  var nLignes = Math.max(capaciteActuelle, ordre.length, lastRowActuelle - PERS_FIRST_L + 1);
+  if (nLignes > 0) {
+    var valeurs = [];
+    for (var i = 0; i < nLignes; i++) {
+      if (i < ordre.length) {
+        var o = ordre[i];
+        var p = par.personnes[o.pid];
+        var roleVal = o.x ? o.x.role : '';
+        var objectifVal = o.x ? o.x.objectif : '';
+        valeurs.push([p.nom, p.prenom, roleVal, groupesActifs_(par, o.pid), objectifVal]);
+      } else {
+        valeurs.push(['', '', '', '', '']);
+      }
+    }
+    sh.getRange(PERS_FIRST_L, 3, nLignes, 5).setValues(valeurs);
+  }
+
+  return { ligne: ligne, personnes: ordre.length, membres: membres.length,
+           formulesProlongees: (capaciteActuelle > (derniereA - PERS_FIRST_L + 1)) };
+}
+
+// Point d'entrée manuel : à lancer depuis l'éditeur Apps Script (menu
+// « Exécuter »), en sélectionnant synchroniserEffectifs. Recommandé de
+// relire les onglets Personnes des classeurs de ligne après une première
+// exécution avant d'envisager un menu ou un déclencheur automatique.
+function synchroniserEffectifs() {
+  var par = lireParametrage_();
+  var resultats = [];
+  LIGNES_SYNC.forEach(function (ligne) {
+    try {
+      resultats.push(synchroniserPersonnesLigne_(par, ligne));
+    } catch (e) {
+      resultats.push({ ligne: ligne, erreur: String(e) });
+    }
+  });
+  Logger.log(JSON.stringify(resultats, null, 2));
+  return resultats;
 }

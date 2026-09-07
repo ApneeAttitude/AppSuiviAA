@@ -1,2 +1,6 @@
 .DS_Store
 **/.DS_Store
+
+# copies jetables utilisées pour tester Code.gs via un déploiement de
+# test (URL /dev) avant de committer/publier — jamais destinées au dépôt.
+**/index-test.html

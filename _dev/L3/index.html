@@ -50,6 +50,21 @@
   label { font-size: 13px; color: rgba(22,32,43,0.65); display: block; margin-top: 10px; }
   .encadrant-info { font-size: 13px; color: rgba(22,32,43,0.75); margin-top: 8px; min-height: 16px; }
   .encadrant-info strong { color: #0f6e6a; }
+  .accordion-toggle {
+    display: flex; align-items: center; justify-content: space-between;
+    width: 100%; margin-top: 10px; padding: 8px 10px;
+    background: rgba(15,110,106,0.10); border: 1px solid rgba(15,110,106,0.25);
+    border-radius: 8px; font-size: 13px; font-weight: 600; color: #0f3a3a;
+    cursor: pointer; text-align: left; font-family: inherit;
+  }
+  .accordion-toggle .chevron { transition: transform .15s ease; display: inline-block; }
+  .accordion-toggle[aria-expanded="true"] .chevron { transform: rotate(90deg); }
+  .accordion-content { margin-top: 6px; }
+  .accordion-content textarea {
+    width: 100%; padding: 10px; font-size: 14px; font-family: inherit;
+    background: rgba(255,255,255,0.5); color: #16202b;
+    border: 1px solid rgba(255,255,255,0.6); border-radius: 8px; resize: vertical;
+  }
   .roster-item {
     display: flex; align-items: center; justify-content: space-between;
     padding: 10px 4px; border-bottom: 1px solid rgba(22,32,43,0.1);
@@ -122,6 +137,12 @@
       <label for="seance">Séance</label>
       <select id="seance"></select>
       <div id="encadrant" class="encadrant-info"></div>
+      <button type="button" id="planToggle" class="accordion-toggle" aria-expanded="false">
+        <span id="planToggleLabel">📋 Plan de séance</span><span class="chevron">›</span>
+      </button>
+      <div id="planContent" class="accordion-content" hidden>
+        <textarea id="planSeance" rows="3" placeholder="Texte et/ou lien (facultatif)"></textarea>
+      </div>
     </div>
 
     <div class="card">
@@ -232,11 +253,29 @@ function afficherEncadrant() {
   }
 }
 
+// Plan de séance (texte ou lien) : accordéon replié par défaut à chaque
+// changement de séance (option B retenue le 07/09/2026), prérempli si déjà
+// renseigné (dans le classeur ou par un encadrant précédent), modifiable
+// ici. Enregistré avec le même bouton "Enregistrer la séance" que les
+// présences — pas de bouton séparé.
+function afficherPlanSeance() {
+  var s = seances.filter(function (x) { return x.id === document.getElementById('seance').value; })[0];
+  var toggle = document.getElementById('planToggle');
+  var content = document.getElementById('planContent');
+  var texte = document.getElementById('planSeance');
+  texte.value = (s && s.plan) || '';
+  document.getElementById('planToggleLabel').textContent =
+    '📋 Plan de séance' + (texte.value ? ' ✓' : '');
+  toggle.setAttribute('aria-expanded', 'false');
+  content.hidden = true;
+}
+
 function ouvrirSeance() {
   presents = {};
   presentsOrder = [];
   render();
   afficherEncadrant();
+  afficherPlanSeance();
   var seanceId = document.getElementById('seance').value;
   fetch(WEB_APP_URL + '?action=fiche&cible=' + encodeURIComponent(CIBLE) +
         '&seance=' + encodeURIComponent(seanceId), { cache: 'no-store' })
@@ -255,6 +294,13 @@ function ouvrirSeance() {
       render();
     });
 }
+
+document.getElementById('planToggle').addEventListener('click', function () {
+  var content = document.getElementById('planContent');
+  var expanded = this.getAttribute('aria-expanded') === 'true';
+  this.setAttribute('aria-expanded', String(!expanded));
+  content.hidden = expanded;
+});
 
 document.getElementById('recherche').addEventListener('input', function (e) {
   var q = e.target.value.trim().toLowerCase();
@@ -334,6 +380,7 @@ document.getElementById('btnSave').addEventListener('click', function () {
     cible: CIBLE,
     idToken: idToken,
     seance_id: document.getElementById('seance').value,
+    plan_seance: document.getElementById('planSeance').value,
     presences: presentsOrder.map(function (id) {
       var p = presents[id];
       return { apneiste_id: id, present: true, qualite: p.qualite, observation: p.observation };

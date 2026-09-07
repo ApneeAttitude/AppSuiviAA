@@ -33,6 +33,8 @@ Dernière mise à jour : 07/09/2026
 
 Idées de fonctionnalités futures, classées par priorité (P1 = prioritaire, P3 = à explorer sans urgence) :
 
+- [x] **P1** — Saisie de la description de la séance (texte et/ou lien) depuis l'appli, ergonomie retenue : accordéon repliable « 📋 Plan de séance » sous le sélecteur de séance (option B), replié par défaut, prérempli si une valeur existe déjà, coché « ✓ » quand rempli. Enregistré avec le même bouton « Enregistrer la séance » que les présences (pas de bouton séparé). Implémenté le 07/09/2026 : `Code.gs` (lecture/écriture colonne R de Calendrier, invalidation du cache « data ») + les 7 `index.html` de ligne + copies _test/_dev L2/L3 — non testé en conditions réelles, à valider par Fred.
+- [ ] **P1** — Saisie du remplaçant en cas d'absence de l'encadrant habituel, depuis l'appli. La colonne « Responsable remplaçant » existe déjà dans Calendrier et l'appli affiche déjà le nom résolu (encadrant ou remplaçant), mais la saisie du remplaçant se fait uniquement en éditant directement le Google Sheet — pas possible depuis l'appli elle-même. Reste à faire.
 - [ ] **P3** — Interface dédiée aux apnéistes (et non plus seulement aux encadrants) pour qu'ils renseignent eux-mêmes leur ressenti de séance et leur forme du jour. Développement distinct de l'existant car public différent (apnéistes plutôt qu'encadrants), mais qui permettrait aussi, potentiellement, de corréler les avis encadrants et les avis apnéistes.
 
 ## Refonte du module Suivi — cahier des charges v2
