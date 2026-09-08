@@ -24,8 +24,8 @@
 
 // Identifiants des GoogleSheet de chaque ligne
 var CLASSEURS = {
-  'DEV-L2':   '1ANbbV-lc9GZeVHQH8X4mFOaMKo4s8wB5TrnmX96WEko',
-  'DEV-L3':   '1gVjJxXIXzvfJUObElSu8D3dnFRHTNcCWemQH-JwDsRY',
+  'DEV-L2':   'REMPLACER_PAR_ID_CLASSEUR_DEV_L2',
+  'DEV-L3':   'REMPLACER_PAR_ID_CLASSEUR_DEV_L3',
   'TEST-L2':  '1jy8hW_2haO3kolxPwgNnT5qANA1kI91_2Kutvn2FQs8',
   'TEST-L3':  'REMPLACER_PAR_ID_CLASSEUR_TEST_L3',
   'PROD-L1':  '1K2h_E7NaJwGuGiAZn_qqhoMHZGxbW39v-j1_j8x9Pf8',
