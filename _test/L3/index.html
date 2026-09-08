@@ -69,7 +69,7 @@
   .plan-toolbar button:hover { background: rgba(15,110,106,0.15); }
   .plan-toolbar button:active { background: rgba(15,110,106,0.28); }
   .plan-editor {
-    width: 100%; height: 75vh; padding: 10px; font-size: 14px; font-family: inherit;
+    width: 100%; min-height: 110px; max-height: 75vh; padding: 10px; font-size: 14px; font-family: inherit;
     background: rgba(255,255,255,0.5); color: #16202b;
     border: 1px solid rgba(255,255,255,0.6); border-radius: 8px;
     overflow-y: auto; -webkit-overflow-scrolling: touch;
@@ -377,11 +377,26 @@ function ouvrirSeance() {
     });
 }
 
+// Hauteur automatique du plan de seance (08/09/2026, suite au retour de
+// Fred : 75vh fixe etait trop grand) : la zone grandit avec le contenu
+// (comme un textarea auto-resize) jusqu'a 75vh (voir .plan-editor
+// max-height ci-dessus), au-dela de quoi elle defile en interne plutot
+// que de continuer a grandir.
+function redimensionnerPlan_() {
+  var editeur = document.getElementById('planSeance');
+  editeur.style.height = 'auto';
+  editeur.style.height = editeur.scrollHeight + 'px';
+}
+document.getElementById('planSeance').addEventListener('input', redimensionnerPlan_);
+
 document.getElementById('planToggle').addEventListener('click', function () {
   var content = document.getElementById('planContent');
   var expanded = this.getAttribute('aria-expanded') === 'true';
   this.setAttribute('aria-expanded', String(!expanded));
   content.hidden = expanded;
+  // recalcule seulement a l'ouverture : replie, l'editeur a un scrollHeight
+  // non fiable (contenu masque).
+  if (!content.hidden) redimensionnerPlan_();
 });
 
 document.getElementById('recherche').addEventListener('input', function (e) {
