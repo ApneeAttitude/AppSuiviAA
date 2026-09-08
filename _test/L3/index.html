@@ -60,11 +60,23 @@
   .accordion-toggle .chevron { transition: transform .15s ease; display: inline-block; }
   .accordion-toggle[aria-expanded="true"] .chevron { transform: rotate(90deg); }
   .accordion-content { margin-top: 6px; }
-  .accordion-content textarea {
-    width: 100%; padding: 10px; font-size: 14px; font-family: inherit;
-    background: rgba(255,255,255,0.5); color: #16202b;
-    border: 1px solid rgba(255,255,255,0.6); border-radius: 8px; resize: vertical;
+  .plan-toolbar { display: flex; gap: 6px; margin-bottom: 6px; }
+  .plan-toolbar button {
+    padding: 6px 10px; font-size: 13px; font-family: inherit; line-height: 1;
+    background: rgba(255,255,255,0.6); color: #0f3a3a;
+    border: 1px solid rgba(15,110,106,0.3); border-radius: 6px; cursor: pointer;
   }
+  .plan-toolbar button:hover { background: rgba(15,110,106,0.15); }
+  .plan-toolbar button:active { background: rgba(15,110,106,0.28); }
+  .plan-editor {
+    width: 100%; height: 75vh; padding: 10px; font-size: 14px; font-family: inherit;
+    background: rgba(255,255,255,0.5); color: #16202b;
+    border: 1px solid rgba(255,255,255,0.6); border-radius: 8px;
+    overflow-y: auto; -webkit-overflow-scrolling: touch;
+  }
+  .plan-editor:empty:before { content: attr(data-placeholder); color: rgba(22,32,43,0.45); }
+  .plan-editor ul, .plan-editor ol { margin: 4px 0; padding-left: 22px; }
+  .plan-editor a { color: #0f6e6a; }
   .roster-item {
     display: flex; align-items: center; justify-content: space-between;
     padding: 10px 4px; border-bottom: 1px solid rgba(22,32,43,0.1);
@@ -141,7 +153,13 @@
         <span id="planToggleLabel">📋 Plan de séance</span><span class="chevron">›</span>
       </button>
       <div id="planContent" class="accordion-content" hidden>
-        <textarea id="planSeance" rows="3" placeholder="Texte et/ou lien (facultatif)"></textarea>
+        <div class="plan-toolbar">
+          <button type="button" data-cmd="bold" title="Gras"><b>G</b></button>
+          <button type="button" data-cmd="italic" title="Italique"><i>I</i></button>
+          <button type="button" data-cmd="insertUnorderedList" title="Liste à puces">☰</button>
+          <button type="button" data-cmd="link" title="Insérer un lien">🔗</button>
+        </div>
+        <div id="planSeance" class="plan-editor" contenteditable="true" data-placeholder="Texte et/ou lien (facultatif)"></div>
       </div>
     </div>
 
@@ -263,12 +281,76 @@ function afficherPlanSeance() {
   var toggle = document.getElementById('planToggle');
   var content = document.getElementById('planContent');
   var texte = document.getElementById('planSeance');
-  texte.value = (s && s.plan) || '';
+  texte.innerHTML = sanitizerPlan_((s && s.plan) || '');
   document.getElementById('planToggleLabel').textContent =
-    '📋 Plan de séance' + (texte.value ? ' ✓' : '');
+    '📋 Plan de séance' + (texte.textContent.trim() ? ' ✓' : '');
   toggle.setAttribute('aria-expanded', 'false');
   content.hidden = true;
 }
+
+// Editeur "texte riche" minimal pour le plan de seance (08/09/2026, en test
+// sur TEST-L2/TEST-L3) : zone contenteditable + petite barre d'outils
+// (Gras/Italique/Liste/Lien) plutot qu'un textarea brut, pour pouvoir mettre
+// en forme un plan de seance un peu structure (liens vers des references,
+// listes d'exercices). document.execCommand est deprecie mais reste le
+// moyen le plus simple d'obtenir un editeur minimal sans dependance externe
+// (pas de librairie tierce sur GitHub Pages) ; a revoir si un navigateur
+// cesse de le supporter.
+var PLAN_TAGS_AUTORISES = { B: 1, STRONG: 1, I: 1, EM: 1, U: 1, UL: 1, OL: 1, LI: 1, BR: 1, DIV: 1, P: 1, SPAN: 1, A: 1 };
+
+function sanitizerPlan_(html) {
+  var tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  (function nettoyer(noeud) {
+    Array.prototype.slice.call(noeud.childNodes).forEach(function (enfant) {
+      if (enfant.nodeType === 1) {
+        if (!PLAN_TAGS_AUTORISES[enfant.tagName]) {
+          while (enfant.firstChild) noeud.insertBefore(enfant.firstChild, enfant);
+          noeud.removeChild(enfant);
+          return;
+        }
+        Array.prototype.slice.call(enfant.attributes).forEach(function (attr) {
+          if (enfant.tagName === 'A' && attr.name === 'href' && /^https?:\/\//i.test(attr.value)) return;
+          enfant.removeAttribute(attr.name);
+        });
+        if (enfant.tagName === 'A') {
+          enfant.setAttribute('target', '_blank');
+          enfant.setAttribute('rel', 'noopener noreferrer');
+        }
+        nettoyer(enfant);
+      } else if (enfant.nodeType !== 3) {
+        noeud.removeChild(enfant);
+      }
+    });
+  })(tmp);
+  return tmp.innerHTML;
+}
+
+document.querySelectorAll('.plan-toolbar button').forEach(function (btn) {
+  // mousedown + preventDefault : on garde la selection/le focus dans
+  // l'editeur, sinon le clic sur le bouton la ferait perdre avant que
+  // execCommand ne s'applique.
+  btn.addEventListener('mousedown', function (e) { e.preventDefault(); });
+  btn.addEventListener('click', function () {
+    var editeur = document.getElementById('planSeance');
+    editeur.focus();
+    var cmd = btn.dataset.cmd;
+    if (cmd === 'link') {
+      var url = window.prompt('Adresse du lien (https://…)');
+      if (!url) return;
+      if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+      var sel = window.getSelection();
+      if (!sel || sel.isCollapsed) {
+        document.execCommand('insertHTML', false,
+          '<a href="' + url.replace(/"/g, '&quot;') + '" target="_blank" rel="noopener noreferrer">' + url + '</a>');
+      } else {
+        document.execCommand('createLink', false, url);
+      }
+    } else {
+      document.execCommand(cmd, false, null);
+    }
+  });
+});
 
 function ouvrirSeance() {
   presents = {};
@@ -380,7 +462,7 @@ document.getElementById('btnSave').addEventListener('click', function () {
     cible: CIBLE,
     idToken: idToken,
     seance_id: document.getElementById('seance').value,
-    plan_seance: document.getElementById('planSeance').value,
+    plan_seance: sanitizerPlan_(document.getElementById('planSeance').innerHTML),
     presences: presentsOrder.map(function (id) {
       var p = presents[id];
       return { apneiste_id: id, present: true, qualite: p.qualite, observation: p.observation };
