@@ -40,6 +40,7 @@ var CLASSEURS = {
 var SHEET_CALENDRIER = 'Calendrier';
 var SHEET_PRESENCES = 'Presences';
 var SHEET_PERSONNES = 'Personnes';
+var SHEET_LISTES = 'Listes';
 
 // Durées de cache (secondes) — CacheService, partagé entre toutes les
 // exécutions du script (donc entre tous les appareils). "data" (roster +
@@ -128,7 +129,10 @@ function getData_(cible) {
   if (brut) return JSON.parse(brut);
 
   var ss = ouvrirClasseur_(cible);
-  var resultat = { ok: true, roster: lirePersonnes_(ss), seances: lireCalendrier_(ss) };
+  var resultat = {
+    ok: true, roster: lirePersonnes_(ss), seances: lireCalendrier_(ss),
+    listesZoneConfort: lireListeZoneConfort_(ss)
+  };
   cache.put(cle, JSON.stringify(resultat), CACHE_TTL_DONNEES);
   return resultat;
 }
@@ -172,6 +176,28 @@ function lirePersonnes_(ss) {
     var p = parId[id];
     return { id: p.id, nom: p.nom, prenom: p.prenom, membre: p.membre };
   });
+}
+
+// Listes de valeurs sous forme ID + libellé (proposition validée par Fred le
+// 09/09/2026, cf. claude/proposition-listes-de-valeurs.md) — Zone de confort
+// est le premier cas migré, uniquement sur TEST-L2 pour l'instant. Table de
+// référence dans l'onglet "Listes", colonnes K (id), L (libellé), M (actif
+// "oui"/"non") ; l'ID est ce qui est stocké dans Presences colonne F, jamais
+// le libellé. Une valeur inactive reste lisible (une ancienne présence peut
+// encore y pointer) mais n'est plus proposée dans le menu déroulant de
+// saisie (filtrage fait côté front, cf. _test/L2/index.html).
+function lireListeZoneConfort_(ss) {
+  var sh = ss.getSheetByName(SHEET_LISTES);
+  var nRows = sh.getLastRow() - 1;   // ligne 1 = en-tetes
+  if (nRows < 1) return [];
+  var values = sh.getRange(2, 11, nRows, 3).getValues();  // K:M
+  var out = [];
+  for (var r = 0; r < values.length; r++) {
+    var id = values[r][0];
+    if (id === '' || id === null) continue;
+    out.push({ id: id, libelle: values[r][1], actif: values[r][2] === 'oui' });
+  }
+  return out;
 }
 
 // Fenêtre glissante de séances chargées par l'app : pas la peine de charger
@@ -314,12 +340,21 @@ function savePresences_(body) {
   var roster = {};
   lirePersonnes_(ss).forEach(function (p) { roster[p.id] = p; });
 
+  var zonesValides = {};
+  lireListeZoneConfort_(ss).forEach(function (z) { zonesValides[z.id] = true; });
+
   var presences = (body.presences || []).filter(function (p) { return p.present; });
   presences.forEach(function (p) {
     // V-01 : la clé étrangère doit exister dans le référentiel — jamais de
     // confiance aveugle dans ce que le client envoie.
     if (!roster[p.apneiste_id]) {
       throw new Error('apnéiste inconnu du référentiel : ' + p.apneiste_id);
+    }
+    // V-02 : idem pour la zone de confort — désormais un ID (cf.
+    // lireListeZoneConfort_), pas un libellé libre (09/09/2026, TEST-L2).
+    if (p.qualite !== '' && p.qualite !== undefined && p.qualite !== null &&
+        !zonesValides[p.qualite]) {
+      throw new Error('zone de confort inconnue du référentiel : ' + p.qualite);
     }
   });
 

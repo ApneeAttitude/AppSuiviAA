@@ -197,6 +197,7 @@ var CIBLE = "TEST-L2";
 var idToken = null;
 var roster = [];
 var seances = [];
+var zonesConfort = [];  // {id, libelle, actif} — cf. Code.gs lireListeZoneConfort_ (09/09/2026)
 var presents = {};   // apneiste_id -> {id, nom, prenom, qualite, observation}
 var presentsOrder = [];  // ordre d'affichage : dernier ajoute en tete (demande du 06/09/2026)
 
@@ -227,6 +228,7 @@ function chargerDonnees() {
       if (!d.ok) { afficherMessage(d.error, true); return; }
       roster = d.roster;
       seances = d.seances;
+      zonesConfort = d.listesZoneConfort || [];
       remplirSeances();
     })
     .catch(function (e) { afficherMessage('Erreur de chargement : ' + e, true); });
@@ -432,6 +434,24 @@ document.getElementById('recherche').addEventListener('input', function (e) {
   });
 });
 
+// Construit les <option> du menu deroulant "Zone de confort" a partir de
+// zonesConfort (chargee depuis l'API, cf. chargerDonnees) plutot que d'une
+// liste codee en dur : changer un libelle cote Sheet se repercute ici sans
+// retouche de ce fichier (09/09/2026, TEST-L2 uniquement pour l'instant).
+// Seules les valeurs actives sont proposees pour une nouvelle saisie, mais
+// une valeur deja selectionnee (meme retiree depuis) reste visible.
+function construireOptionsZoneConfort_(valeurActuelle) {
+  var html = '<option value="">Zone de confort (facultatif)</option>';
+  zonesConfort.forEach(function (z) {
+    var estActuelle = valeurActuelle !== '' && valeurActuelle !== undefined && valeurActuelle !== null &&
+                       Number(z.id) === Number(valeurActuelle);
+    if (!z.actif && !estActuelle) return;
+    html += '<option value="' + z.id + '"' + (estActuelle ? ' selected' : '') + '>' +
+            String(z.libelle).replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</option>';
+  });
+  return html;
+}
+
 function render() {
   var wrap = document.getElementById('presents');
   var vide = document.getElementById('vide');
@@ -448,10 +468,7 @@ function render() {
       (estInvite ? ' <span class="badge-invite">invité</span>' : '') + '</span>' +
       '<button data-id="' + id + '" class="retirer" aria-label="Retirer">&times;</button></div>' +
       '<select data-id="' + id + '" class="qualite">' +
-        '<option value="">Zone de confort (facultatif)</option>' +
-        '<option value="Hors zone"' + (p.qualite === 'Hors zone' ? ' selected' : '') + '>Hors zone</option>' +
-        '<option value="En limite"' + (p.qualite === 'En limite' ? ' selected' : '') + '>En limite</option>' +
-        '<option value="Dans la zone"' + (p.qualite === 'Dans la zone' ? ' selected' : '') + '>Dans la zone</option>' +
+        construireOptionsZoneConfort_(p.qualite) +
       '</select>' +
       '<input type="text" data-id="' + id + '" class="observation" placeholder="Observation (facultatif)" value="' +
         (p.observation || '').replace(/"/g, '&quot;') + '">';
@@ -465,7 +482,7 @@ function render() {
     };
   });
   wrap.querySelectorAll('.qualite').forEach(function (s) {
-    s.onchange = function () { presents[s.dataset.id].qualite = s.value; };
+    s.onchange = function () { presents[s.dataset.id].qualite = s.value === '' ? '' : Number(s.value); };
   });
   wrap.querySelectorAll('.observation').forEach(function (i) {
     i.oninput = function () { presents[i.dataset.id].observation = i.value; };
