@@ -341,8 +341,12 @@ document.querySelectorAll('.plan-toolbar button').forEach(function (btn) {
       if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
       var sel = window.getSelection();
       if (!sel || sel.isCollapsed) {
+        var titre = window.prompt('Texte du lien à afficher (facultatif)', url);
+        if (titre === null) return;
+        if (!titre.trim()) titre = url;
         document.execCommand('insertHTML', false,
-          '<a href="' + url.replace(/"/g, '&quot;') + '" target="_blank" rel="noopener noreferrer">' + url + '</a>');
+          '<a href="' + url.replace(/"/g, '&quot;') + '" target="_blank" rel="noopener noreferrer">' +
+          titre.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</a>');
       } else {
         document.execCommand('createLink', false, url);
       }
