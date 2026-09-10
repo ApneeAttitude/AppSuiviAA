@@ -342,6 +342,16 @@ function savePresences_(body) {
 
   var zonesValides = {};
   lireListeZoneConfort_(ss).forEach(function (z) { zonesValides[z.id] = true; });
+  // Un classeur n'est « migré » vers le modèle ID+libellé que s'il a une
+  // table Listes!K:M non vide (aujourd'hui, uniquement TEST-L2) — sur tout
+  // autre classeur, la zone de confort reste un texte libre historique et
+  // V-02 ne doit pas s'appliquer. RÉGRESSION du 09/09/2026, corrigée le
+  // 10/09/2026 : comme Code.gs est un script partagé par tous les
+  // environnements, la validation V-02 bloquait par erreur l'enregistrement
+  // de TOUTE présence avec une zone de confort sur les classeurs PROD (leur
+  // Listes!K:M est vide, donc zonesValides était vide et rejetait tout
+  // texte non-ID) — signalé par Fred sur PROD-L3.
+  var zoneConfortMigree = Object.keys(zonesValides).length > 0;
 
   var presences = (body.presences || []).filter(function (p) { return p.present; });
   presences.forEach(function (p) {
@@ -351,8 +361,10 @@ function savePresences_(body) {
       throw new Error('apnéiste inconnu du référentiel : ' + p.apneiste_id);
     }
     // V-02 : idem pour la zone de confort — désormais un ID (cf.
-    // lireListeZoneConfort_), pas un libellé libre (09/09/2026, TEST-L2).
-    if (p.qualite !== '' && p.qualite !== undefined && p.qualite !== null &&
+    // lireListeZoneConfort_) sur les classeurs migrés uniquement
+    // (09/09/2026, TEST-L2 pour l'instant) ; ailleurs, texte libre non
+    // validé ici, comme avant ce chantier.
+    if (zoneConfortMigree && p.qualite !== '' && p.qualite !== undefined && p.qualite !== null &&
         !zonesValides[p.qualite]) {
       throw new Error('zone de confort inconnue du référentiel : ' + p.qualite);
     }
