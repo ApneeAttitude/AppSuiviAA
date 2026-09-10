@@ -181,16 +181,22 @@ function lirePersonnes_(ss) {
 // Listes de valeurs sous forme ID + libellé (proposition validée par Fred le
 // 09/09/2026, cf. claude/proposition-listes-de-valeurs.md) — Zone de confort
 // est le premier cas migré, uniquement sur TEST-L2 pour l'instant. Table de
-// référence dans l'onglet "Listes", colonnes K (id), L (libellé), M (actif
-// "oui"/"non") ; l'ID est ce qui est stocké dans Presences colonne F, jamais
-// le libellé. Une valeur inactive reste lisible (une ancienne présence peut
-// encore y pointer) mais n'est plus proposée dans le menu déroulant de
-// saisie (filtrage fait côté front, cf. _test/L2/index.html).
+// référence dans l'onglet "Listes", repérée par la plage nommée
+// "ListeZoneConfort" (colonnes ID | Libellé | Actif "oui"/"non") plutôt que
+// par des coordonnées fixes (K:M) — depuis la réorganisation du 10/09/2026
+// de cet onglet (titre / en-têtes / valeurs, une colonne d'écart entre
+// chaque liste, cf. reorganiserListesEtPresences), la position de ce
+// tableau varie d'un classeur à l'autre. Un classeur sans cette plage
+// nommée n'est simplement pas migré vers ce modèle (ex. tous les PROD
+// actuellement) : zone de confort y reste un texte libre, comme avant.
+// L'ID est ce qui est stocké dans Presences colonne "Zone de confort
+// (ID)", jamais le libellé. Une valeur inactive reste lisible (une
+// ancienne présence peut encore y pointer) mais n'est plus proposée dans
+// le menu déroulant de saisie (filtrage fait côté front).
 function lireListeZoneConfort_(ss) {
-  var sh = ss.getSheetByName(SHEET_LISTES);
-  var nRows = sh.getLastRow() - 1;   // ligne 1 = en-tetes
-  if (nRows < 1) return [];
-  var values = sh.getRange(2, 11, nRows, 3).getValues();  // K:M
+  var rng = ss.getRangeByName('ListeZoneConfort');
+  if (!rng) return [];
+  var values = rng.getValues();
   var out = [];
   for (var r = 0; r < values.length; r++) {
     var id = values[r][0];
@@ -289,17 +295,39 @@ function lirePresences_(cible, seanceId) {
 }
 
 // Colonnes de l'onglet Presences : A id seance, B selection (saisie
-// manuelle, non utilisee par l'app), C apneiste id, D nom, E prenom,
-// F qualite, G observation, H controle (formule, non touchee par l'app).
+// manuelle, non utilisee par l'app), C apneiste id, D nom, E prenom —
+// toujours à ces positions sur tous les classeurs. En revanche, à partir
+// de F, la mise en page peut varier d'un classeur à l'autre (ex. TEST-L2
+// a une colonne "Zone de confort (libellé)" entre l'ID et l'Observation,
+// depuis la réorganisation du 10/09/2026 — pas les classeurs PROD) : on
+// repère donc qualité/observation/contrôle par leur en-tête (ligne 4),
+// jamais par un numéro de colonne fixe, pour qu'un même Code.gs partagé
+// par tous les environnements reste correct quelle que soit la mise en
+// page réelle du classeur ouvert (leçon de la régression du 10/09/2026,
+// cf. savePresences_ V-02).
+function presencesCols_(sh) {
+  var header = sh.getRange(4, 1, 1, sh.getLastColumn()).getValues()[0];
+  var col = {};
+  header.forEach(function (h, i) {
+    var cle = String(h || '').trim();
+    if (cle) col[cle] = i + 1; // 1-based, comme getRange(...)
+  });
+  return col;
+}
+
 function calculerFiche_(ss, seanceId) {
-  var values = ss.getSheetByName(SHEET_PRESENCES).getDataRange().getValues();
+  var sh = ss.getSheetByName(SHEET_PRESENCES);
+  var col = presencesCols_(sh);
+  var iQualite = col['Zone de confort (ID)'] - 1;      // -1 : index 0-based dans row[]
+  var iObservation = col['Observation de l\'encadrant'] - 1;
+  var values = sh.getDataRange().getValues();
   var presences = [];
   for (var r = 4; r < values.length; r++) {
     var row = values[r];
     if (row[0] === seanceId) {
       presences.push({
         apneiste_id: row[2], nom: row[3], prenom: row[4],
-        qualite: row[5] || '', observation: row[6] || ''
+        qualite: row[iQualite] || '', observation: row[iObservation] || ''
       });
     }
   }
@@ -371,6 +399,14 @@ function savePresences_(body) {
   });
 
   var sh = ss.getSheetByName(SHEET_PRESENCES);
+  // Qualité et observation ne sont pas forcément dans des colonnes
+  // adjacentes ni à une position fixe (cf. presencesCols_ / calculerFiche_
+  // ci-dessus) : sur TEST-L2, "Zone de confort (libellé)" (une formule,
+  // jamais écrite ici) s'intercale désormais entre les deux — on écrit
+  // donc chaque colonne séparément plutôt que sur une plage de 2 colonnes
+  // contiguës comme avant le 10/09/2026.
+  var colQualite = presencesCols_(sh)['Zone de confort (ID)'];
+  var colObservation = presencesCols_(sh)['Observation de l\'encadrant'];
   var nRows = sh.getLastRow() - 4;
   var idCol = sh.getRange(5, 1, nRows, 1).getValues().map(function (r) { return r[0]; });
   var selCol = sh.getRange(5, 2, nRows, 1).getValues().map(function (r) { return r[0]; });
@@ -392,14 +428,16 @@ function savePresences_(body) {
     var row = 5 + disponibles[i];
     var pers = roster[p.apneiste_id];
     sh.getRange(row, 1, 1, 2).setValues([[seanceId, selectionTexte_(pers)]]);
-    sh.getRange(row, 6, 1, 2).setValues([[p.qualite || '', p.observation || '']]);
+    sh.getRange(row, colQualite).setValue(p.qualite || '');
+    sh.getRange(row, colObservation).setValue(p.observation || '');
   });
   // lignes qui appartenaient à la séance mais ne sont plus nécessaires —
   // vidées (jamais les colonnes C/D/E/H, formules).
   for (var j = presences.length; j < deSeance.length; j++) {
     var r2 = 5 + deSeance[j];
     sh.getRange(r2, 1, 1, 2).clearContent();
-    sh.getRange(r2, 6, 1, 2).clearContent();
+    sh.getRange(r2, colQualite).clearContent();
+    sh.getRange(r2, colObservation).clearContent();
   }
 
   ecrirePlanSeance_(ss, seanceId, body.plan_seance);
@@ -676,4 +714,205 @@ function synchroniserEffectifs() {
   });
   Logger.log(JSON.stringify(resultats, null, 2));
   return resultats;
+}
+
+// --- Migration ponctuelle : mise en page de l'onglet Listes + colonne ----
+// libellé dans Presences (demande de Fred du 10/09/2026) ------------------
+//
+// Réorganise l'onglet "Listes" du classeur `cible` : chaque liste devient
+// un bloc titre / en-tête(s) de colonne / valeurs, séparé du suivant par
+// une colonne vide (au lieu des 9 listes historiques posées côte à côte
+// sans séparation, et de la table Zone de confort en K:M sans distinction
+// entre titre et en-tête). Crée/rafraîchit la plage nommée
+// "ListeZoneConfort" sur la nouvelle position du tableau ID/Libellé/Actif
+// (cf. lireListeZoneConfort_, qui s'y réfère par nom et non par
+// coordonnées). Ajoute aussi, dans l'onglet "Presences", une colonne
+// "Zone de confort (libellé)" juste après la colonne ID (au lieu d'une
+// colonne isolée en fin de tableau) — formule VLOOKUP sur cette plage
+// nommée, pour les 500 lignes pré-provisionnées.
+//
+// Fonction de maintenance, à lancer à la main depuis l'éditeur Apps Script
+// (jamais appelée par doGet/doPost), comme synchroniserEffectifs. Conçue
+// pour être rejouée sur d'autres classeurs le jour où Fred validera une
+// extension du périmètre (TEST-L3, PROD) — mais à ce jour, lancée
+// uniquement sur TEST-L2 (périmètre validé par Fred le 10/09/2026).
+function reorganiserListesEtPresences(cible) {
+  if (!cible) throw new Error('cible manquante, ex. reorganiserListesEtPresences("TEST-L2")');
+  var ss = ouvrirClasseur_(cible);
+  // Garde-fou (10/09/2026) : cette fonction relit l'onglet Listes en supposant
+  // la mise en page D'ORIGINE (une seule ligne de titre par liste, valeurs
+  // juste en-dessous). Une fois la migration faite, l'onglet a une ligne de
+  // titre PUIS une ligne d'en-tête "Valeur"/"ID"... : la relire avec les
+  // mêmes hypothèses décale tout et corrompt les listes (incident constaté
+  // sur TEST-L2, corrigé par restauration d'une version antérieure du
+  // classeur). Donc : jamais une deuxième fois sur un classeur déjà migré.
+  if (ss.getRangeByName('ListeZoneConfort')) {
+    throw new Error('classeur ' + cible + ' déjà migré (plage ListeZoneConfort ' +
+      'existante) - reorganiserListesEtPresences ne doit être lancée qu\'une ' +
+      'seule fois par classeur. Pour corriger uniquement les formules de la ' +
+      'colonne "Zone de confort (libellé)", utiliser ' +
+      'corrigerFormulesLibellePresences(cible) à la place.');
+  }
+  var shL = ss.getSheetByName(SHEET_LISTES);
+
+  // 1) Capture des listes existantes (colonnes A à I) avant de tout effacer.
+  var definitions = [
+    { titre: 'Jours', col: 1 },
+    { titre: 'Niveaux de compétence', col: 2 },
+    { titre: 'Statut d\'acquisition', col: 3 },
+    { titre: 'Qualité de réalisation', col: 4 },
+    { titre: 'Natures de séance', col: 5 },
+    { titre: 'Statuts de séance', col: 6 },
+    { titre: 'Avis d\'encadrant', col: 7 },
+    { titre: 'Types d\'événement', col: 8 },
+    { titre: 'Gravités', col: 9 }
+  ];
+  var anciennesListes = definitions.map(function (l) {
+    var lastRow = derniereLigneNonVide_(shL, l.col);
+    var valeurs = lastRow > 1
+      ? shL.getRange(2, l.col, lastRow - 1, 1).getValues().map(function (r) { return r[0]; })
+      : [];
+    return { titre: l.titre, valeurs: valeurs };
+  });
+  var lastRowZC = derniereLigneNonVide_(shL, 11); // colonne K = ID (ancienne position)
+  var zoneConfort = lastRowZC > 1 ? shL.getRange(2, 11, lastRowZC - 1, 3).getValues() : [];
+
+  var fondTitre = shL.getRange('A1').getBackground();
+  var couleurTitre = shL.getRange('A1').getFontColor();
+
+  // 2) Reconstruction : un bloc par liste, séparé du suivant par une
+  // colonne vide (titre en ligne 1, en-tête(s) de colonne en ligne 2,
+  // valeurs à partir de la ligne 3).
+  shL.clear();
+  var blocs = [];
+  var col = 1;
+  anciennesListes.forEach(function (l) {
+    shL.getRange(1, col).setValue(l.titre);
+    shL.getRange(2, col).setValue('Valeur');
+    if (l.valeurs.length) {
+      shL.getRange(3, col, l.valeurs.length, 1).setValues(l.valeurs.map(function (v) { return [v]; }));
+    }
+    blocs.push({ colDebut: col, largeur: 1 });
+    col += 2; // 1 colonne de liste + 1 colonne d'écart
+  });
+  var colDebutZC = col;
+  shL.getRange(1, colDebutZC).setValue('Zone de confort');
+  shL.getRange(2, colDebutZC, 1, 3).setValues([['ID', 'Libellé', 'Actif']]);
+  if (zoneConfort.length) {
+    shL.getRange(3, colDebutZC, zoneConfort.length, 3).setValues(zoneConfort);
+  }
+  blocs.push({ colDebut: colDebutZC, largeur: 3 });
+
+  // Titre et en-têtes repris du style d'origine (fond/couleur de l'ancienne
+  // ligne 1), pour rester visuellement cohérent avec le reste du classeur.
+  blocs.forEach(function (b) {
+    shL.getRange(1, b.colDebut, 1, b.largeur)
+      .setBackground(fondTitre).setFontColor(couleurTitre).setFontWeight('bold');
+    shL.getRange(2, b.colDebut, 1, b.largeur)
+      .setFontWeight('bold').setBackground('#f3f3f3');
+  });
+
+  // Plage nommée : Code.gs (lireListeZoneConfort_) s'y réfère par nom,
+  // jamais par coordonnées — ne dépend donc plus de la mise en page de cet
+  // onglet, contrairement à avant le 10/09/2026.
+  var nomPlage = 'ListeZoneConfort';
+  if (ss.getRangeByName(nomPlage)) ss.removeNamedRange(nomPlage);
+  if (zoneConfort.length) {
+    ss.setNamedRange(nomPlage, shL.getRange(3, colDebutZC, zoneConfort.length, 3));
+  }
+
+  // 3) Onglet Presences : colonne "Zone de confort (libellé)" juste après
+  // la colonne ID — et nettoyage d'une éventuelle colonne du même nom déjà
+  // présente ailleurs (tentative précédente, jamais alimentée).
+  var shP = ss.getSheetByName(SHEET_PRESENCES);
+  var header = shP.getRange(4, 1, 1, shP.getLastColumn()).getValues()[0];
+  var colIdActuelle = header.indexOf('Zone de confort (ID)') + 1;
+  if (!colIdActuelle) throw new Error('colonne "Zone de confort (ID)" introuvable dans Presences');
+  // Idempotent : si la colonne existe déjà juste après l'ID (ex. deuxième
+  // exécution de cette fonction), on la réutilise au lieu d'en re-insérer
+  // une (qui aurait sinon décalé une seconde fois Observation/Contrôle).
+  var colLibelleExistante = header.indexOf('Zone de confort (libellé)') + 1;
+  var colLibelle;
+  if (colLibelleExistante && colLibelleExistante !== colIdActuelle + 1) {
+    shP.deleteColumn(colLibelleExistante); // toujours après colIdActuelle : ne la décale pas
+    colLibelleExistante = 0;
+  }
+  if (colLibelleExistante === colIdActuelle + 1) {
+    colLibelle = colLibelleExistante;
+  } else {
+    shP.insertColumnAfter(colIdActuelle);
+    colLibelle = colIdActuelle + 1;
+    var refFormat = shP.getRange(4, colIdActuelle);
+    shP.getRange(4, colLibelle).setValue('Zone de confort (libellé)')
+      .setFontWeight(refFormat.getFontWeight())
+      .setBackground(refFormat.getBackground())
+      .setFontColor(refFormat.getFontColor());
+  }
+
+  // Séparateur point-virgule : classeur en locale fr_FR (confirmé par
+  // diagnostic le 10/09/2026) - la virgule, bien qu'acceptée sans erreur par
+  // Range.setFormulas/getFormula (qui restent en syntaxe US), produit une
+  // #ERROR! ("Erreur d'analyse de formule") à l'évaluation par le moteur de
+  // calcul dans cette locale. Le point-virgule fonctionne dans les deux cas.
+  var nRows = shP.getMaxRows() - 4;
+  var formules = [];
+  for (var r = 0; r < nRows; r++) {
+    var celluleId = shP.getRange(5 + r, colIdActuelle).getA1Notation();
+    formules.push(['=IFERROR(VLOOKUP(' + celluleId + ';' + nomPlage + ';2;FALSE);"")']);
+  }
+  shP.getRange(5, colLibelle, nRows, 1).setFormulas(formules);
+
+  var resultat = {
+    listes: anciennesListes.map(function (l) { return l.titre + ' (' + l.valeurs.length + ' valeurs)'; }),
+    zoneConfort: zoneConfort.length + ' valeurs, plage ' +
+      (zoneConfort.length ? shL.getRange(3, colDebutZC, zoneConfort.length, 3).getA1Notation() : '(aucune)'),
+    colonneLibellePresences: colLibelle,
+    presencesLignesFormulees: nRows
+  };
+  Logger.log(JSON.stringify(resultat, null, 2));
+  return resultat;
+}
+
+// Dernière ligne non vide d'une colonne donnée (1-based), 0 si la colonne
+// est entièrement vide. Utilisé par reorganiserListesEtPresences pour ne
+// recopier que les valeurs réellement saisies de chaque liste, sans
+// supposer une hauteur fixe (les listes n'ont pas toutes le même nombre
+// de valeurs).
+function derniereLigneNonVide_(sh, col) {
+  var nRows = sh.getLastRow();
+  if (nRows < 1) return 0;
+  var values = sh.getRange(1, col, nRows, 1).getValues();
+  var last = 0;
+  for (var r = 0; r < values.length; r++) {
+    if (values[r][0] !== '' && values[r][0] !== null) last = r + 1;
+  }
+  return last;
+}
+
+// Corrige uniquement les formules de la colonne "Zone de confort (libellé)"
+// dans Presences, sans toucher à l'onglet Listes ni à la position de cette
+// colonne (contrairement à reorganiserListesEtPresences, rejouable sans
+// risque). À utiliser si les formules doivent être régénérées (ex. après une
+// restauration de version, ou une correction du séparateur ',' vs ';' -
+// cf. 10/09/2026).
+function corrigerFormulesLibellePresences(cible) {
+  if (!cible) throw new Error('cible manquante, ex. corrigerFormulesLibellePresences("TEST-L2")');
+  var ss = ouvrirClasseur_(cible);
+  var nomPlage = 'ListeZoneConfort';
+  if (!ss.getRangeByName(nomPlage)) throw new Error('plage nommée ' + nomPlage + ' introuvable sur ' + cible);
+  var shP = ss.getSheetByName(SHEET_PRESENCES);
+  var header = shP.getRange(4, 1, 1, shP.getLastColumn()).getValues()[0];
+  var colIdActuelle = header.indexOf('Zone de confort (ID)') + 1;
+  var colLibelle = header.indexOf('Zone de confort (libellé)') + 1;
+  if (!colIdActuelle || !colLibelle) throw new Error('colonnes Zone de confort introuvables dans Presences');
+  var nRows = shP.getMaxRows() - 4;
+  var formules = [];
+  for (var r = 0; r < nRows; r++) {
+    var celluleId = shP.getRange(5 + r, colIdActuelle).getA1Notation();
+    formules.push(['=IFERROR(VLOOKUP(' + celluleId + ';' + nomPlage + ';2;FALSE);"")']);
+  }
+  shP.getRange(5, colLibelle, nRows, 1).setFormulas(formules);
+  var resultat = { colonneLibellePresences: colLibelle, presencesLignesFormulees: nRows };
+  Logger.log(JSON.stringify(resultat));
+  return resultat;
 }
