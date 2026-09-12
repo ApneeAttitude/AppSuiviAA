@@ -144,12 +144,10 @@ function getData_(cible) {
 // l'indicateur "membre" : permet au front de proposer un "invité"
 // (personne connue du classeur mais pas de cette ligne) et de l'afficher
 // differemment (demande du 07/09/2026).
-// Une même personne peut apparaître sur plusieurs lignes du même classeur
-// (même id en colonne B) quand elle a plusieurs rôles dans la ligne, par
-// exemple élève ET encadrant (cas Sandry Wallon en L3) : on ne garde
-// qu'une seule entrée par id, en préférant la ligne "élève" quand elle
-// existe (demande du 06/09/2026 — l'encadrant n'a pas à apparaître comme
-// participant, il est déjà identifié comme tel dans le calendrier).
+// Une même personne peut apparaître plusieurs fois dans le classeur lorsqu'elle
+// cumule des rôles. L'entrée exposée au front reste unique par ID : `role`
+// conserve le rôle élève pour les listes de participants, tandis que `roles`
+// et `est_encadrant` conservent tous les rôles pour la liste des remplaçants.
 function lirePersonnes_(ss) {
   var sh = ss.getSheetByName(SHEET_PERSONNES);
   var values = sh.getDataRange().getValues();
@@ -166,18 +164,25 @@ function lirePersonnes_(ss) {
     };
     var existant = parId[id];
     if (!existant) {
+      candidat.roles = {};
+      if (candidat.role) candidat.roles[candidat.role] = true;
       parId[id] = candidat;
       ordre.push(id);
-    } else if (existant.role !== 'élève' && candidat.role === 'élève') {
-      parId[id] = candidat;
+    } else {
+      if (candidat.role) existant.roles[candidat.role] = true;
+      existant.membre = existant.membre || candidat.membre;
+      if (existant.role !== 'élève' && candidat.role === 'élève') {
+        existant.role = candidat.role;
+      }
     }
   }
   return ordre.map(function (id) {
     var p = parId[id];
-    // role exposé depuis le 12/09/2026 : permet au front de filtrer les
-    // personnes qualifiées encadrant (accordéon "Remplacement", TEST
-    // uniquement) sans dupliquer cette logique côté classeur.
-    return { id: p.id, nom: p.nom, prenom: p.prenom, membre: p.membre, role: p.role };
+    var roles = Object.keys(p.roles);
+    return {
+      id: p.id, nom: p.nom, prenom: p.prenom, membre: p.membre, role: p.role,
+      roles: roles, est_encadrant: roles.indexOf('encadrant') !== -1
+    };
   });
 }
 
@@ -405,7 +410,7 @@ function ecrireRemplacant_(ss, seanceId, remplacantId, roster) {
   if (!pers) throw new Error('remplaçant inconnu du référentiel : ' + remplacantId);
   // V-09 : le remplaçant doit être qualifié encadrant, comme pour toute
   // affectation d'encadrement (même principe que D-15/COMPTE-07).
-  if (pers.role.indexOf('encadrant') === -1) {
+  if (!pers.est_encadrant) {
     throw new Error('remplaçant non qualifié encadrant : ' + remplacantId);
   }
   sh.getRange(5 + idx, 14).setValue(selectionTexte_(pers));
@@ -606,7 +611,7 @@ function lireParametrage_() {
     inscriptions.push({
       id: pidI,
       groupe: row[5],                              // colonne F : Groupe de niveau
-      role: row[6],                                // colonne G : Rôle
+      role: String(row[6] || '').toLowerCase().trim(), // colonne G : Rôle
       objectif: row[10] || '',                     // colonne K : Objectif de la saison
       fin: fin
     });
@@ -645,6 +650,20 @@ function groupesActifs_(par, pid) {
   return Object.keys(groupes).sort().join(' / ');
 }
 
+// Groupes dans lesquels une personne exerce un rôle donné. La colonne
+// Groupe(s) doit suivre le rôle de la ligne Personnes : cela permet à la
+// formule "Membre de la ligne" de distinguer, par exemple, un élève L2 qui
+// est encadrant dans une autre ligne.
+function groupesActifsRole_(par, pid, role) {
+  var groupes = {};
+  par.inscriptions.forEach(function (x) {
+    if (x.id === pid && x.role === role && x.groupe && par.estActive(x)) {
+      groupes[x.groupe] = true;
+    }
+  });
+  return Object.keys(groupes).sort().join(' / ');
+}
+
 // Dernière ligne, à partir de `first`, où la colonne `col` porte une formule
 // (et non une simple valeur ou une cellule vide) — sert à savoir jusqu'où les
 // formules Code/Membre sont déjà provisionnées dans l'onglet Personnes d'un
@@ -661,8 +680,8 @@ function derniereLigneFormule_(sh, col, first, maxScan) {
 }
 
 // -------------------------------------------------- synchronisation d'une ligne
-function synchroniserPersonnesLigne_(par, ligne) {
-  var ss = ouvrirClasseur_('PROD-' + ligne);
+function synchroniserPersonnesLigne_(par, ligne, cible) {
+  var ss = ouvrirClasseur_(cible || ('PROD-' + ligne));
   var sh = ss.getSheetByName(SHEET_PERSONNES);
   var PERS_FIRST_L = 5;
 
@@ -682,13 +701,13 @@ function synchroniserPersonnesLigne_(par, ligne) {
     });
   }
 
-  // 2. Inscriptions actives dans CETTE ligne : une entrée par (personne, rôle)
-  //    — une personne à la fois élève et encadrante dans la même ligne y
-  //    apparaît deux fois, jamais un rôle agrégé (même règle que
-  //    sync_referentiel.py, décision du 06/09/2026).
+  // 2. Toutes les inscriptions actives du club : une entrée par
+  //    (personne, rôle). Les groupes sont regroupés dans la colonne F pour
+  //    ce même rôle. Ainsi chaque classeur connaît tous les encadrants, même
+  //    lorsqu'ils encadrent habituellement une autre ligne.
   var parCle = {};      // clé "id|role" -> inscription
   par.inscriptions.forEach(function (x) {
-    if (x.groupe !== ligne || !par.estActive(x) || !par.personnes[x.id]) return;
+    if (!par.estActive(x) || !par.personnes[x.id] || !x.role) return;
     var cle = x.id + '|' + x.role;
     if (!parCle[cle]) parCle[cle] = x;
   });
@@ -708,16 +727,16 @@ function synchroniserPersonnesLigne_(par, ligne) {
     var nb = (par.personnes[xb.id].nom + par.personnes[xb.id].prenom + xb.role).toUpperCase();
     return na < nb ? -1 : (na > nb ? 1 : 0);
   });
-  var membres = connues.concat(nouvelles);
-  var membresPids = {};
-  membres.forEach(function (c) { membresPids[parCle[c].id] = true; });
+  var inscriptionsActives = connues.concat(nouvelles);
+  var personnesAvecRole = {};
+  inscriptionsActives.forEach(function (c) { personnesAvecRole[parCle[c].id] = true; });
 
   // 3. Le reste du club, sans rôle dans cette ligne : présent quand même
   //    (un encadrant n'est pas nécessairement inscrit dans la ligne qu'il
   //    encadre — l'onglet Personnes porte tout le club).
-  var autres = par.ordreClub.filter(function (pid) { return !membresPids[pid]; });
+  var autres = par.ordreClub.filter(function (pid) { return !personnesAvecRole[pid]; });
 
-  var ordre = membres.map(function (c) { return { pid: parCle[c].id, x: parCle[c] }; })
+  var ordre = inscriptionsActives.map(function (c) { return { pid: parCle[c].id, x: parCle[c] }; })
     .concat(autres.map(function (pid) { return { pid: pid, x: null }; }));
 
   // 4. S'assurer que les formules Code/Membre (colonnes A et H) couvrent
@@ -739,7 +758,7 @@ function synchroniserPersonnesLigne_(par, ligne) {
     capaciteActuelle = ordre.length;
   }
 
-  // 5. Effacer puis réécrire les colonnes C à G (jamais A ni H) sur toute la
+  // 5. Réécrire les colonnes B à G (jamais A ni H) sur toute la
   //    plage couverte par les formules (au moins ordre.length, au moins
   //    l'ancienne étendue, pour ne pas laisser de lignes fantômes si le club
   //    a rétréci).
@@ -752,15 +771,19 @@ function synchroniserPersonnesLigne_(par, ligne) {
         var p = par.personnes[o.pid];
         var roleVal = o.x ? o.x.role : '';
         var objectifVal = o.x ? o.x.objectif : '';
-        valeurs.push([p.nom, p.prenom, roleVal, groupesActifs_(par, o.pid), objectifVal]);
+        var groupesVal = o.x ? groupesActifsRole_(par, o.pid, o.x.role) : groupesActifs_(par, o.pid);
+        valeurs.push([o.pid, p.nom, p.prenom, roleVal, groupesVal, objectifVal]);
       } else {
-        valeurs.push(['', '', '', '', '']);
+        valeurs.push(['', '', '', '', '', '']);
       }
     }
-    sh.getRange(PERS_FIRST_L, 3, nLignes, 5).setValues(valeurs);
+    sh.getRange(PERS_FIRST_L, 2, nLignes, 6).setValues(valeurs);
   }
 
-  return { ligne: ligne, personnes: ordre.length, membres: membres.length,
+  var membres = inscriptionsActives.filter(function (c) {
+    return groupesActifsRole_(par, parCle[c].id, parCle[c].role).split(' / ').indexOf(ligne) !== -1;
+  }).length;
+  return { ligne: ligne, personnes: ordre.length, membres: membres,
            formulesProlongees: (capaciteActuelle > (derniereA - PERS_FIRST_L + 1)) };
 }
 
@@ -780,6 +803,15 @@ function synchroniserEffectifs() {
   });
   Logger.log(JSON.stringify(resultats, null, 2));
   return resultats;
+}
+
+// Point d'entrée de validation : synchronise uniquement le classeur TEST-L2.
+// La synchronisation de la PROD reste une action distincte et manuelle.
+function synchroniserEffectifsTestL2() {
+  var par = lireParametrage_();
+  var resultat = synchroniserPersonnesLigne_(par, 'L2', 'TEST-L2');
+  Logger.log(JSON.stringify(resultat, null, 2));
+  return resultat;
 }
 
 // --- Migration ponctuelle : mise en page de l'onglet Listes + colonne ----
