@@ -138,6 +138,12 @@
   .present-item select, .present-item input {
     margin-top: 6px; font-size: 14px; padding: 6px;
   }
+  .present-item textarea.observation {
+    display: block; width: 100%; box-sizing: border-box; margin-top: 6px;
+    min-height: 38px; max-height: 72px; resize: none; overflow-y: hidden;
+    font: inherit; font-size: 14px; line-height: 1.35; padding: 6px;
+    border: 1px solid rgba(22,32,43,0.18); border-radius: 6px;
+  }
   .present-item.invite {
     background: rgba(255,236,206,0.6); border-color: rgba(240,180,100,0.55);
   }
@@ -572,6 +578,21 @@ function construireOptionsZoneConfort_(valeurActuelle) {
   return html;
 }
 
+// Redimensionne une observation jusqu'à trois lignes. Au-delà, la zone reste
+// compacte et défile verticalement pour éviter que la carte ne prenne toute
+// la hauteur de l'écran.
+function ajusterObservation_(textarea) {
+  textarea.style.height = 'auto';
+  var style = window.getComputedStyle(textarea);
+  var lineHeight = parseFloat(style.lineHeight) || 19;
+  var padding = (parseFloat(style.paddingTop) || 0) + (parseFloat(style.paddingBottom) || 0);
+  var hauteurMax = Math.ceil(lineHeight * 3 + padding + 2);
+  var hauteur = Math.max(textarea.scrollHeight, parseFloat(style.minHeight) || 0);
+  textarea.style.maxHeight = hauteurMax + 'px';
+  textarea.style.height = Math.min(hauteur, hauteurMax) + 'px';
+  textarea.style.overflowY = hauteur > hauteurMax ? 'auto' : 'hidden';
+}
+
 function render() {
   var wrap = document.getElementById('presents');
   var vide = document.getElementById('vide');
@@ -590,9 +611,11 @@ function render() {
       '<select data-id="' + id + '" class="qualite">' +
         construireOptionsZoneConfort_(p.qualite) +
       '</select>' +
-      '<input type="text" data-id="' + id + '" class="observation" placeholder="Observation (facultatif)" value="' +
-        (p.observation || '').replace(/"/g, '&quot;') + '">';
+      '<textarea data-id="' + id + '" class="observation" rows="1" placeholder="Observation (facultatif)"></textarea>';
     wrap.appendChild(div);
+    var observation = div.querySelector('.observation');
+    observation.value = p.observation || '';
+    ajusterObservation_(observation);
   });
   wrap.querySelectorAll('.retirer').forEach(function (b) {
     b.onclick = function () {
@@ -605,7 +628,10 @@ function render() {
     s.onchange = function () { presents[s.dataset.id].qualite = s.value === '' ? '' : Number(s.value); };
   });
   wrap.querySelectorAll('.observation').forEach(function (i) {
-    i.oninput = function () { presents[i.dataset.id].observation = i.value; };
+    i.oninput = function () {
+      presents[i.dataset.id].observation = i.value;
+      ajusterObservation_(i);
+    };
   });
 }
 
