@@ -243,6 +243,14 @@ function lireCalendrier_(ss) {
 
   var tz = Session.getScriptTimeZone();
   var sh = ss.getSheetByName(SHEET_CALENDRIER);
+  var responsablesHabituels = {};
+  var ref = ss.getSheetByName('Referentiel').getDataRange().getValues();
+  for (var iRef = 0; iRef < ref.length; iRef++) {
+    if (ref[iRef][0] !== '' && ref[iRef][0] !== null &&
+        ref[iRef][7] !== '' && ref[iRef][7] !== null) {
+      responsablesHabituels[String(ref[iRef][0])] = ref[iRef][7];
+    }
+  }
   var values = sh.getDataRange().getValues();
   var out = [];
   for (var r = 4; r < values.length; r++) {
@@ -272,6 +280,12 @@ function lireCalendrier_(ss) {
       // (accordeon "Remplacement", TEST uniquement — demande du 12/09/2026).
       remplacant_actif: !!row[13],
       responsable_id: row[14] || '',
+      // Responsable défini dans Referentiel pour le créneau, indépendamment
+      // du remplaçant éventuellement saisi en N. Repli sur l'ID résolu en O
+      // quand aucun remplacement n'est actif, pour rester compatible avec
+      // un ancien classeur dont le référentiel serait incomplet.
+      responsable_habituel_id: responsablesHabituels[String(row[4])] ||
+        (!row[13] ? (row[14] || '') : ''),
       // colonne R : Plan de séance (texte ou lien), saisi depuis l'appli
       // (accordéon repliable — demande du 07/09/2026).
       plan: row[17] || '',
