@@ -1054,3 +1054,73 @@ function migrerSaisieZoneConfortParLibelle(cible) {
 function migrerSaisieZoneConfortTestL2() {
   return migrerSaisieZoneConfortParLibelle('TEST-L2');
 }
+
+// Migration PROD validée sur les cinq copies TEST MIGRATION le 12/09/2026.
+// Chaque contrôle est effectué avant la première écriture du classeur visé.
+function migrerZonesConfortProd_(cible) {
+  var autorisees = { 'PROD-L1': true, 'PROD-L2': true, 'PROD-L3': true, 'PROD-L4': true, 'PROD-LC': true };
+  if (!autorisees[cible]) throw new Error('cible PROD non autorisée : ' + cible);
+  var ss = ouvrirClasseur_(cible);
+  if (ss.getName().indexOf('AA - Suivi ') !== 0 || ss.getName().indexOf('TEST') !== -1) {
+    throw new Error('nom de classeur PROD inattendu : ' + ss.getName());
+  }
+  var sh = ss.getSheetByName(SHEET_PRESENCES);
+  var col = presencesCols_(sh);
+  if (col['Zone de confort'] !== 6) throw new Error(cible + ' : Zone de confort attendue en F');
+  if (col['Zone de confort (ID)']) return { cible: cible, dejaMigre: true };
+  if (col['Observation de l\'encadrant'] !== 7 || col['Contrôle'] !== 8) {
+    throw new Error(cible + ' : structure Presences inattendue');
+  }
+  var nRows = sh.getMaxRows() - 4;
+  var source = sh.getRange(5, 6, nRows, 1).getValues();
+  var compte = { vides: 0, confort: 0, limite: 0 };
+  var inconnues = {};
+  var libelles = source.map(function (row) {
+    if (row[0] === '' || row[0] === null) { compte.vides++; return ['']; }
+    var cle = String(row[0]).trim().toLowerCase();
+    if (cle === 'dans la zone') { compte.confort++; return ['Confort']; }
+    if (cle === 'en limite' || cle === 'hors zone' || cle === 'hors zoone') {
+      compte.limite++; return ['Limite'];
+    }
+    inconnues[String(row[0])] = true;
+    return [row[0]];
+  });
+  if (Object.keys(inconnues).length) {
+    throw new Error(cible + ' : valeurs inconnues, aucune écriture effectuée : ' + Object.keys(inconnues).join(', '));
+  }
+  var listes = ss.getSheetByName(SHEET_LISTES);
+  listes.getRange('S2:U5').setValues([
+    ['Zone de confort — ID', 'Zone de confort — libellé', 'Actif'],
+    [1, 'Confort', 'oui'], [2, 'Challenge', 'oui'], [3, 'Limite', 'oui']
+  ]);
+  ss.setNamedRange('ListeZoneConfort', listes.getRange('S3:U5'));
+  sh.insertColumnAfter(6);
+  sh.getRange(4, 7).setValue('Zone de confort (ID)');
+  sh.getRange(5, 6, nRows, 1).setValues(libelles);
+  var formules = [];
+  for (var r = 5; r < 5 + nRows; r++) {
+    formules.push(['=IFERROR(INDEX(ListeZoneConfort;MATCH(F' + r + ';INDEX(ListeZoneConfort;0;2);0);1);"")']);
+  }
+  sh.getRange(5, 7, nRows, 1).setFormulas(formules);
+  SpreadsheetApp.flush();
+  var ids = sh.getRange(5, 7, nRows, 1).getValues();
+  var apres = { vides: 0, id1: 0, id2: 0, id3: 0, autres: 0 };
+  ids.forEach(function (row) {
+    var id = row[0];
+    if (id === '' || id === null) apres.vides++;
+    else if (id === 1) apres.id1++;
+    else if (id === 2) apres.id2++;
+    else if (id === 3) apres.id3++;
+    else apres.autres++;
+  });
+  var colApres = presencesCols_(sh);
+  if (colApres['Observation de l\'encadrant'] !== 8 || colApres['Contrôle'] !== 9 ||
+      apres.id1 !== compte.confort || apres.id3 !== compte.limite || apres.id2 !== 0 || apres.autres !== 0) {
+    throw new Error(cible + ' : contrôle final incohérent ' + JSON.stringify(apres));
+  }
+  return { cible: cible, avant: compte, apres: apres };
+}
+
+function migrerZonesConfortProd20260912() {
+  return ['PROD-L1', 'PROD-L2', 'PROD-L3', 'PROD-L4', 'PROD-LC'].map(migrerZonesConfortProd_);
+}

@@ -50,6 +50,39 @@
   label { font-size: 13px; color: rgba(22,32,43,0.65); display: block; margin-top: 10px; }
   .encadrant-info { font-size: 13px; color: rgba(22,32,43,0.75); margin-top: 8px; min-height: 16px; }
   .encadrant-info strong { color: #0f6e6a; }
+  .encadrant-row { display: flex; align-items: center; gap: 8px; }
+  .encadrant-row .encadrant-info { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .replacement-dialog button { min-height: 44px; padding: 8px 12px; border: 1px solid #0f6e6a; border-radius: 8px; background: #fff; color: #0f5754; font: inherit; cursor: pointer; }
+  .replacement-button {
+    display: inline-flex; align-items: center; gap: 6px;
+    min-height: 44px; padding: 6px 14px 6px 6px; flex-shrink: 0;
+    background: rgba(15,110,106,0.10); border: 1px solid rgba(15,110,106,0.25);
+    border-radius: 999px; color: #0f5754; font: inherit; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: background .15s ease, border-color .15s ease, color .15s ease;
+  }
+  .replacement-button-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
+    background: #0f6e6a; color: #fff;
+  }
+  .replacement-button:hover { background: rgba(15,110,106,0.18); }
+  .replacement-button.is-active { background: #0f6e6a; border-color: #0f6e6a; color: #fff; }
+  .replacement-button.is-active .replacement-button-icon { background: rgba(255,255,255,0.25); }
+  .replacement-note { color: #714000; font-size: 12px; margin: 6px 0 0; }
+  .replacement-dialog { box-sizing: border-box; width: min(480px, calc(100% - 28px)); max-height: 85dvh; padding: 20px; border: 0; border-radius: 18px; color: #16202b; background: #f3f8f8; overflow-y: auto; }
+  .replacement-dialog::backdrop { background: rgba(3,12,22,.65); }
+  .replacement-dialog h2 { font-size: 19px; margin: 0; }
+  .replacement-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .replacement-dialog input { box-sizing: border-box; background: white; border-color: #728e8b; }
+  .replacement-dialog p { font-size: 13px; }
+  .replacement-dialog .roster-item { gap: 12px; }
+  .replacement-dialog .roster-item-habituel { background: rgba(15,110,106,0.08); border-radius: 8px; padding-left: 8px; padding-right: 8px; border-bottom: 2px solid rgba(15,110,106,0.25); margin-bottom: 6px; }
+  .replacement-dialog .roster-item button { background: #0f6e6a; color: white; flex-shrink: 0; }
+  .replacement-dialog button:focus-visible, .replacement-button:focus-visible { outline: 3px solid #e3a331; outline-offset: 3px; }
+  .replacement-dialog .current-choice { font-size: 12px; color: #0f5754; }
+  @media (max-width: 600px) {
+    .replacement-dialog { width: 100%; max-height: 85dvh; margin: auto 0 0; border-radius: 20px 20px 0 0; padding-bottom: max(20px, env(safe-area-inset-bottom)); }
+  }
   .accordion-toggle {
     display: flex; align-items: center; justify-content: space-between;
     width: 100%; margin-top: 10px; padding: 8px 10px;
@@ -148,7 +181,11 @@
     <div class="card">
       <label for="seance">Séance</label>
       <select id="seance"></select>
-      <div id="encadrant" class="encadrant-info"></div>
+      <div class="encadrant-row">
+        <div id="encadrant" class="encadrant-info" aria-live="polite"></div>
+        <button type="button" id="remplacantOuvrir" class="replacement-button" aria-haspopup="dialog"><span class="replacement-button-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h11l-3-3M17 17H6l3 3"/></svg></span><span id="remplacantOuvrirLabel">Remplacer</span></button>
+      </div>
+      <p id="remplacantNote" class="replacement-note" role="status" hidden>Modification non enregistrée</p>
       <button type="button" id="planToggle" class="accordion-toggle" aria-expanded="false">
         <span id="planToggleLabel">📋 Plan de séance</span><span class="chevron">›</span>
       </button>
@@ -161,6 +198,7 @@
         </div>
         <div id="planSeance" class="plan-editor" contenteditable="true" data-placeholder="Texte et/ou lien (facultatif)"></div>
       </div>
+
     </div>
 
     <div class="card">
@@ -181,6 +219,18 @@
   <div id="msg"></div>
 </div>
 
+<dialog id="remplacantDialog" class="replacement-dialog" aria-labelledby="remplacantTitre" aria-describedby="remplacantAide">
+  <div class="replacement-heading">
+    <h2 id="remplacantTitre">Choisir un remplaçant</h2>
+    <button type="button" id="remplacantFermer" aria-label="Fermer sans modifier">✕</button>
+  </div>
+  <p id="remplacantAide">Choisis un encadrant, puis utilise « Enregistrer la séance » pour sauvegarder.</p>
+  <label for="remplacantRecherche">Rechercher un encadrant</label>
+  <input id="remplacantRecherche" type="text" placeholder="Nom ou prénom…" autocomplete="off">
+  <p id="remplacantResultat" role="status"></p>
+  <div id="remplacantSuggestions"></div>
+</dialog>
+
 <script>
 // --- À renseigner après déploiement -------------------------------------
 // Script STANDALONE unique (Code.gs), un seul code source pour toutes les
@@ -197,6 +247,7 @@ var CIBLE = "PROD-LC";
 var idToken = null;
 var roster = [];
 var seances = [];
+var zonesConfort = [];  // {id, libelle, actif} — cf. Code.gs lireListeZoneConfort_ (09/09/2026)
 var presents = {};   // apneiste_id -> {id, nom, prenom, qualite, observation}
 var presentsOrder = [];  // ordre d'affichage : dernier ajoute en tete (demande du 06/09/2026)
 
@@ -227,6 +278,7 @@ function chargerDonnees() {
       if (!d.ok) { afficherMessage(d.error, true); return; }
       roster = d.roster;
       seances = d.seances;
+      zonesConfort = d.listesZoneConfort || [];
       remplirSeances();
     })
     .catch(function (e) { afficherMessage('Erreur de chargement : ' + e, true); });
@@ -258,18 +310,88 @@ function remplirSeances() {
   }
 }
 
-// Encadrant de la seance selectionnee : le remplacant s'il est precise
-// dans le Calendrier, sinon l'encadrant habituel du creneau — deduit
-// cote serveur (Code.gs), affiche tel quel ici (demande du 07/09/2026).
-function afficherEncadrant() {
-  var s = seances.filter(function (x) { return x.id === document.getElementById('seance').value; })[0];
-  var el = document.getElementById('encadrant');
-  if (s && (s.encadrant_prenom || s.encadrant_nom)) {
-    el.innerHTML = 'Encadrant : <strong>' + (s.encadrant_prenom + ' ' + s.encadrant_nom).trim() + '</strong>';
-  } else {
-    el.textContent = '';
-  }
+// Remplacement en brouillon, enregistré avec la séance uniquement.
+var remplacementId = '';
+var remplacementInitialId = '';
+function seanceCourante_() {
+  return seances.find(function (s) { return s.id === document.getElementById('seance').value; });
 }
+function initialiserRemplacement_() {
+  var s = seanceCourante_();
+  remplacementInitialId = s && s.remplacant_actif ? String(s.responsable_id || '') : '';
+  remplacementId = remplacementInitialId;
+  afficherEncadrant();
+}
+function afficherEncadrant() {
+  var s = seanceCourante_();
+  // Si aucun remplacant n'est actif (selection courante OU initiale), on
+  // affiche l'encadrant HABITUEL du creneau (responsable_habituel_id,
+  // independant de tout remplacement en cours - cf. Code.gs), jamais
+  // s.encadrant_prenom/nom qui refletent l'identite courante uniquement.
+  var idAffiche = remplacementId || (s ? String(s.responsable_habituel_id || '') : '');
+  var p = roster.find(function (p) { return String(p.id) === idAffiche; });
+  var nom = p ? (p.prenom + ' ' + p.nom).trim() : '';
+  var el = document.getElementById('encadrant');
+  el.textContent = 'Encadrant : ';
+  var strong = document.createElement('strong');
+  strong.textContent = nom || (remplacementId ? 'Remplaçant' : 'Encadrant habituel');
+  el.appendChild(strong);
+  if (remplacementId) el.appendChild(document.createTextNode(' · remplaçant'));
+  document.getElementById('remplacantOuvrirLabel').textContent = remplacementId ? 'Modifier' : 'Remplacer';
+  document.getElementById('remplacantOuvrir').classList.toggle('is-active', !!remplacementId);
+  document.getElementById('remplacantOuvrir').disabled = !s;
+  document.getElementById('remplacantNote').hidden = remplacementId === remplacementInitialId;
+}
+function normaliserRecherche_(texte) {
+  return String(texte || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+function rechercherRemplacants_() {
+  var q = normaliserRecherche_(document.getElementById('remplacantRecherche').value);
+  var s = seanceCourante_();
+  var pHabituel = s ? roster.find(function (p) { return String(p.id) === String(s.responsable_habituel_id || ''); }) : null;
+  var nomHabituel = (pHabituel ? (pHabituel.prenom + ' ' + pHabituel.nom).trim() : '') || 'encadrant habituel';
+  var candidats = roster.filter(function (p) {
+    return normaliserRecherche_(p.role).includes('encadrant') &&
+      (!q || normaliserRecherche_(p.nom).startsWith(q) || normaliserRecherche_(p.prenom).startsWith(q) ||
+       normaliserRecherche_(p.prenom + ' ' + p.nom).startsWith(q));
+  }).sort(function (a, b) { return (a.nom + a.prenom).localeCompare(b.nom + b.prenom, 'fr'); });
+  var box = document.getElementById('remplacantSuggestions');
+  box.replaceChildren();
+  // Ligne fixe "encadrant habituel" : toujours visible, jamais filtree par la recherche
+  // (demande de Fred du 12/09/2026 - remplace l'ancien bouton separe).
+  var rowHabituel = document.createElement('div'); rowHabituel.className = 'roster-item roster-item-habituel';
+  var labelHabituel = document.createElement('span'); labelHabituel.textContent = '↩ ' + nomHabituel + ' (habituel)';
+  var boutonHabituel = document.createElement('button'); boutonHabituel.type = 'button';
+  boutonHabituel.textContent = remplacementId === '' ? 'Sélectionné' : 'Choisir';
+  boutonHabituel.setAttribute('aria-label', 'Revenir à l’encadrant habituel, ' + nomHabituel);
+  boutonHabituel.onclick = function () { choisirRemplacant_(''); };
+  rowHabituel.append(labelHabituel, boutonHabituel); box.appendChild(rowHabituel);
+  document.getElementById('remplacantResultat').textContent = candidats.length ?
+    candidats.length + ' encadrant(s)' : 'Aucun encadrant trouvé.';
+  candidats.forEach(function (p) {
+    var row = document.createElement('div'); row.className = 'roster-item';
+    var label = document.createElement('span'); label.textContent = p.prenom + ' ' + p.nom;
+    var button = document.createElement('button'); button.type = 'button';
+    button.textContent = String(p.id) === remplacementId ? 'Sélectionné' : 'Choisir';
+    button.setAttribute('aria-label', 'Choisir ' + p.prenom + ' ' + p.nom);
+    button.onclick = function () { choisirRemplacant_(String(p.id)); };
+    row.append(label, button); box.appendChild(row);
+  });
+}
+function choisirRemplacant_(id) {
+  remplacementId = id;
+  afficherEncadrant();
+  document.getElementById('remplacantDialog').close();
+}
+document.getElementById('remplacantOuvrir').addEventListener('click', function () {
+  document.getElementById('remplacantRecherche').value = '';
+  rechercherRemplacants_();
+  document.getElementById('remplacantDialog').showModal();
+  document.getElementById('remplacantRecherche').focus();
+});
+document.getElementById('remplacantRecherche').addEventListener('input', rechercherRemplacants_);
+document.getElementById('remplacantFermer').addEventListener('click', function () { document.getElementById('remplacantDialog').close(); });
+document.getElementById('remplacantDialog').addEventListener('close', function () { document.getElementById('remplacantOuvrir').focus(); });
 
 // Plan de séance (texte ou lien) : accordéon replié par défaut à chaque
 // changement de séance (option B retenue le 07/09/2026), prérempli si déjà
@@ -288,14 +410,14 @@ function afficherPlanSeance() {
   content.hidden = true;
 }
 
-// Editeur "texte riche" minimal pour le plan de seance (08/09/2026, deploye
-// en prod apres validation sur TEST-L2/TEST-L3) : zone contenteditable +
-// petite barre d'outils (Gras/Italique/Liste/Lien) plutot qu'un textarea
-// brut, pour pouvoir mettre en forme un plan de seance un peu structure
-// (liens vers des references, listes d'exercices). document.execCommand
-// est deprecie mais reste le moyen le plus simple d'obtenir un editeur
-// minimal sans dependance externe (pas de librairie tierce sur GitHub
-// Pages) ; a revoir si un navigateur cesse de le supporter.
+// Editeur "texte riche" minimal pour le plan de seance (08/09/2026, en test
+// sur TEST-L2/TEST-L3) : zone contenteditable + petite barre d'outils
+// (Gras/Italique/Liste/Lien) plutot qu'un textarea brut, pour pouvoir mettre
+// en forme un plan de seance un peu structure (liens vers des references,
+// listes d'exercices). document.execCommand est deprecie mais reste le
+// moyen le plus simple d'obtenir un editeur minimal sans dependance externe
+// (pas de librairie tierce sur GitHub Pages) ; a revoir si un navigateur
+// cesse de le supporter.
 var PLAN_TAGS_AUTORISES = { B: 1, STRONG: 1, I: 1, EM: 1, U: 1, UL: 1, OL: 1, LI: 1, BR: 1, DIV: 1, P: 1, SPAN: 1, A: 1 };
 
 function sanitizerPlan_(html) {
@@ -360,7 +482,7 @@ function ouvrirSeance() {
   presents = {};
   presentsOrder = [];
   render();
-  afficherEncadrant();
+  initialiserRemplacement_();
   afficherPlanSeance();
   var seanceId = document.getElementById('seance').value;
   fetch(WEB_APP_URL + '?action=fiche&cible=' + encodeURIComponent(CIBLE) +
@@ -381,10 +503,11 @@ function ouvrirSeance() {
     });
 }
 
-// Hauteur automatique du plan de seance (08/09/2026) : la zone grandit
-// avec le contenu (comme un textarea auto-resize) jusqu'a 75vh (voir
-// .plan-editor max-height ci-dessus), au-dela de quoi elle defile en
-// interne plutot que de continuer a grandir.
+// Hauteur automatique du plan de seance (08/09/2026, suite au retour de
+// Fred : 75vh fixe etait trop grand) : la zone grandit avec le contenu
+// (comme un textarea auto-resize) jusqu'a 75vh (voir .plan-editor
+// max-height ci-dessus), au-dela de quoi elle defile en interne plutot
+// que de continuer a grandir.
 function redimensionnerPlan_() {
   var editeur = document.getElementById('planSeance');
   editeur.style.height = 'auto';
@@ -431,6 +554,24 @@ document.getElementById('recherche').addEventListener('input', function (e) {
   });
 });
 
+// Construit les <option> du menu deroulant "Zone de confort" a partir de
+// zonesConfort (chargee depuis l'API, cf. chargerDonnees) plutot que d'une
+// liste codee en dur : changer un libelle cote Sheet se repercute ici sans
+// retouche de ce fichier (09/09/2026).
+// Seules les valeurs actives sont proposees pour une nouvelle saisie, mais
+// une valeur deja selectionnee (meme retiree depuis) reste visible.
+function construireOptionsZoneConfort_(valeurActuelle) {
+  var html = '<option value="">Zone de confort (facultatif)</option>';
+  zonesConfort.forEach(function (z) {
+    var estActuelle = valeurActuelle !== '' && valeurActuelle !== undefined && valeurActuelle !== null &&
+                       Number(z.id) === Number(valeurActuelle);
+    if (!z.actif && !estActuelle) return;
+    html += '<option value="' + z.id + '"' + (estActuelle ? ' selected' : '') + '>' +
+            String(z.libelle).replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</option>';
+  });
+  return html;
+}
+
 function render() {
   var wrap = document.getElementById('presents');
   var vide = document.getElementById('vide');
@@ -447,10 +588,7 @@ function render() {
       (estInvite ? ' <span class="badge-invite">invité</span>' : '') + '</span>' +
       '<button data-id="' + id + '" class="retirer" aria-label="Retirer">&times;</button></div>' +
       '<select data-id="' + id + '" class="qualite">' +
-        '<option value="">Zone de confort (facultatif)</option>' +
-        '<option value="Hors zone"' + (p.qualite === 'Hors zone' ? ' selected' : '') + '>Hors zone</option>' +
-        '<option value="En limite"' + (p.qualite === 'En limite' ? ' selected' : '') + '>En limite</option>' +
-        '<option value="Dans la zone"' + (p.qualite === 'Dans la zone' ? ' selected' : '') + '>Dans la zone</option>' +
+        construireOptionsZoneConfort_(p.qualite) +
       '</select>' +
       '<input type="text" data-id="' + id + '" class="observation" placeholder="Observation (facultatif)" value="' +
         (p.observation || '').replace(/"/g, '&quot;') + '">';
@@ -464,7 +602,7 @@ function render() {
     };
   });
   wrap.querySelectorAll('.qualite').forEach(function (s) {
-    s.onchange = function () { presents[s.dataset.id].qualite = s.value; };
+    s.onchange = function () { presents[s.dataset.id].qualite = s.value === '' ? '' : Number(s.value); };
   });
   wrap.querySelectorAll('.observation').forEach(function (i) {
     i.oninput = function () { presents[i.dataset.id].observation = i.value; };
@@ -474,6 +612,8 @@ function render() {
 document.getElementById('btnSave').addEventListener('click', function () {
   var btn = this;
   btn.disabled = true;
+  document.getElementById('seance').disabled = true;
+  document.getElementById('remplacantOuvrir').disabled = true;
   afficherMessage('Enregistrement…', false);
   var payload = {
     action: 'saveSeance',
@@ -481,6 +621,7 @@ document.getElementById('btnSave').addEventListener('click', function () {
     idToken: idToken,
     seance_id: document.getElementById('seance').value,
     plan_seance: sanitizerPlan_(document.getElementById('planSeance').innerHTML),
+    remplacant_id: remplacementId === remplacementInitialId ? null : remplacementId,
     presences: presentsOrder.map(function (id) {
       var p = presents[id];
       return { apneiste_id: id, present: true, qualite: p.qualite, observation: p.observation };
@@ -494,11 +635,30 @@ document.getElementById('btnSave').addEventListener('click', function () {
     .then(function (r) { return r.json(); })
     .then(function (d) {
       btn.disabled = false;
+      document.getElementById('seance').disabled = false;
+      document.getElementById('remplacantOuvrir').disabled = false;
       if (!d.ok) { afficherMessage(d.error, true); return; }
+      var s = seanceCourante_();
+      var nomAffiche = document.querySelector('#encadrant strong').textContent;
+      s.remplacant_actif = !!remplacementId;
+      s.responsable_id = remplacementId;
+      s.encadrant_prenom = '';
+      s.encadrant_nom = nomAffiche;
+      remplacementInitialId = remplacementId;
+      afficherEncadrant();
       afficherMessage(d.saved + ' présence(s) enregistrée(s).', false);
+      // Recharge le nom habituel résolu par le serveur après un retour au titulaire.
+      fetch(WEB_APP_URL + '?action=data&cible=' + encodeURIComponent(CIBLE), { cache: 'no-store' })
+        .then(function (r) { return r.json(); }).then(function (data) {
+          if (!data.ok) return;
+          seances = data.seances;
+          if (document.getElementById('seance').value === payload.seance_id && remplacementId === remplacementInitialId) initialiserRemplacement_();
+        }).catch(function () { /* La sauvegarde a réussi ; le nom sera relu à la prochaine ouverture. */ });
     })
     .catch(function (e) {
       btn.disabled = false;
+      document.getElementById('seance').disabled = false;
+      document.getElementById('remplacantOuvrir').disabled = false;
       afficherMessage('Échec de l\'enregistrement : ' + e, true);
     });
 });
