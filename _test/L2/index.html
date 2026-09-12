@@ -324,9 +324,13 @@ function initialiserRemplacement_() {
 }
 function afficherEncadrant() {
   var s = seanceCourante_();
-  var p = roster.find(function (p) { return String(p.id) === remplacementId; });
-  var nom = p ? (p.prenom + ' ' + p.nom).trim() :
-    (s && remplacementId === remplacementInitialId ? ((s.encadrant_prenom || '') + ' ' + (s.encadrant_nom || '')).trim() : '');
+  // Si aucun remplacant n'est actif (selection courante OU initiale), on
+  // affiche l'encadrant HABITUEL du creneau (responsable_habituel_id,
+  // independant de tout remplacement en cours - cf. Code.gs), jamais
+  // s.encadrant_prenom/nom qui refletent l'identite courante uniquement.
+  var idAffiche = remplacementId || (s ? String(s.responsable_habituel_id || '') : '');
+  var p = roster.find(function (p) { return String(p.id) === idAffiche; });
+  var nom = p ? (p.prenom + ' ' + p.nom).trim() : '';
   var el = document.getElementById('encadrant');
   el.textContent = 'Encadrant : ';
   var strong = document.createElement('strong');
@@ -344,7 +348,8 @@ function normaliserRecherche_(texte) {
 function rechercherRemplacants_() {
   var q = normaliserRecherche_(document.getElementById('remplacantRecherche').value);
   var s = seanceCourante_();
-  var nomHabituel = (s ? ((s.encadrant_prenom || '') + ' ' + (s.encadrant_nom || '')).trim() : '') || 'encadrant habituel';
+  var pHabituel = s ? roster.find(function (p) { return String(p.id) === String(s.responsable_habituel_id || ''); }) : null;
+  var nomHabituel = (pHabituel ? (pHabituel.prenom + ' ' + pHabituel.nom).trim() : '') || 'encadrant habituel';
   var candidats = roster.filter(function (p) {
     return normaliserRecherche_(p.role).includes('encadrant') &&
       (!q || normaliserRecherche_(p.nom).startsWith(q) || normaliserRecherche_(p.prenom).startsWith(q) ||
