@@ -174,7 +174,10 @@ function lirePersonnes_(ss) {
   }
   return ordre.map(function (id) {
     var p = parId[id];
-    return { id: p.id, nom: p.nom, prenom: p.prenom, membre: p.membre };
+    // role exposé depuis le 12/09/2026 : permet au front de filtrer les
+    // personnes qualifiées encadrant (accordéon "Remplacement", TEST
+    // uniquement) sans dupliquer cette logique côté classeur.
+    return { id: p.id, nom: p.nom, prenom: p.prenom, membre: p.membre, role: p.role };
   });
 }
 
@@ -264,6 +267,11 @@ function lireCalendrier_(ss) {
       // sinon encadrant habituel du creneau) — cf. build_suivi.py write_calendrier_row.
       encadrant_nom: row[15] || '',
       encadrant_prenom: row[16] || '',
+      // colonne N (brute) et O (ID resolu) : exposees pour permettre a
+      // l'appli de proposer/pre-selectionner un remplacant deja saisi
+      // (accordeon "Remplacement", TEST uniquement — demande du 12/09/2026).
+      remplacant_actif: !!row[13],
+      responsable_id: row[14] || '',
       // colonne R : Plan de séance (texte ou lien), saisi depuis l'appli
       // (accordéon repliable — demande du 07/09/2026).
       plan: row[17] || '',
@@ -359,6 +367,36 @@ function ecrirePlanSeance_(ss, seanceId, plan) {
   sh.getRange(5 + idx, 18).setValue(plan); // colonne R
 }
 
+// Écrit le remplaçant (colonne N de Calendrier, accordéon "Remplacement" côté
+// front, TEST uniquement — demande du 12/09/2026). Même convention que
+// ecrirePlanSeance_ : undefined/null = accordéon non touché, on ne modifie
+// rien. '' = "Aucun (encadrant habituel)" sélectionné : on efface N, la
+// formule existante (colonne O) retombe alors sur l'encadrant habituel du
+// créneau. Un id : on écrit "Prénom Nom [id]" (même format que
+// selectionTexte_, déjà utilisé pour Presences colonne B), que la formule de
+// la colonne O sait déjà extraire directement entre crochets — aucune
+// formule du classeur à modifier pour ce chantier.
+function ecrireRemplacant_(ss, seanceId, remplacantId, roster) {
+  if (remplacantId === undefined || remplacantId === null) return;
+  var sh = ss.getSheetByName(SHEET_CALENDRIER);
+  var nRows = sh.getLastRow() - 4;
+  var idCol = sh.getRange(5, 1, nRows, 1).getValues().map(function (r) { return r[0]; });
+  var idx = idCol.indexOf(seanceId);
+  if (idx === -1) throw new Error('séance introuvable dans Calendrier : ' + seanceId);
+  if (remplacantId === '') {
+    sh.getRange(5 + idx, 14).clearContent(); // colonne N
+    return;
+  }
+  var pers = roster[remplacantId];
+  if (!pers) throw new Error('remplaçant inconnu du référentiel : ' + remplacantId);
+  // V-09 : le remplaçant doit être qualifié encadrant, comme pour toute
+  // affectation d'encadrement (même principe que D-15/COMPTE-07).
+  if (pers.role.indexOf('encadrant') === -1) {
+    throw new Error('remplaçant non qualifié encadrant : ' + remplacantId);
+  }
+  sh.getRange(5 + idx, 14).setValue(selectionTexte_(pers));
+}
+
 function savePresences_(body) {
   var email = verifierJeton_(body.idToken);
   var seanceId = body.seance_id;
@@ -441,6 +479,7 @@ function savePresences_(body) {
   }
 
   ecrirePlanSeance_(ss, seanceId, body.plan_seance);
+  ecrireRemplacant_(ss, seanceId, body.remplacant_id, roster);
 
   // rafraîchit immédiatement le cache "fiche" de cette séance : la
   // prochaine lecture (même appareil ou un autre) voit tout de suite le
@@ -449,9 +488,10 @@ function savePresences_(body) {
   var cache = CacheService.getScriptCache();
   cache.put('v2|' + body.cible + '|fiche|' + seanceId,
             JSON.stringify(calculerFiche_(ss, seanceId)), CACHE_TTL_FICHE);
-  // le plan de séance fait partie de la réponse "data" (lireCalendrier_) :
-  // on invalide ce cache aussi, sinon le prochain chargement de la page
-  // renverrait encore l'ancien plan pendant CACHE_TTL_DONNEES.
+  // le plan de séance et le remplaçant font partie de la réponse "data"
+  // (lireCalendrier_) : on invalide ce cache aussi, sinon le prochain
+  // chargement de la page renverrait encore l'ancienne valeur pendant
+  // CACHE_TTL_DONNEES.
   cache.remove('v2|' + body.cible + '|data');
 
   return { ok: true, saved: presences.length, par: email };

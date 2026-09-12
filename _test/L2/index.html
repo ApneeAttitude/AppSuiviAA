@@ -161,6 +161,13 @@
         </div>
         <div id="planSeance" class="plan-editor" contenteditable="true" data-placeholder="Texte et/ou lien (facultatif)"></div>
       </div>
+      <button type="button" id="remplacantToggle" class="accordion-toggle" aria-expanded="false">
+        <span id="remplacantToggleLabel">🔁 Remplacement</span><span class="chevron">›</span>
+      </button>
+      <div id="remplacantContent" class="accordion-content" hidden>
+        <label for="remplacantSelect">Encadrant qui assure la séance</label>
+        <select id="remplacantSelect"></select>
+      </div>
     </div>
 
     <div class="card">
@@ -273,6 +280,34 @@ function afficherEncadrant() {
   }
 }
 
+// Remplacement (12/09/2026, TEST uniquement — option B validée par Fred) :
+// accordéon replié par défaut à chaque changement de séance, même pattern
+// que le Plan de séance. Le select ne propose que les personnes qualifiées
+// encadrant (role contient "encadrant"), jamais de texte libre. Présélection
+// sur le remplaçant déjà saisi dans le Calendrier (s.remplacant_actif), pas
+// sur l'encadrant habituel — sinon on figerait la séance sur cette personne
+// à l'enregistrement alors que rien n'a été choisi (voir ecrireRemplacant_).
+function optionsRemplacant_() {
+  return roster
+    .filter(function (p) { return (p.role || '').indexOf('encadrant') !== -1; })
+    .sort(function (a, b) { return (a.nom + a.prenom).localeCompare(b.nom + b.prenom); })
+    .map(function (p) {
+      return '<option value="' + p.id + '">' + p.prenom + ' ' + p.nom + '</option>';
+    })
+    .join('');
+}
+
+function afficherRemplacant() {
+  var s = seances.filter(function (x) { return x.id === document.getElementById('seance').value; })[0];
+  var sel = document.getElementById('remplacantSelect');
+  sel.innerHTML = '<option value="">— Aucun (encadrant habituel) —</option>' + optionsRemplacant_();
+  sel.value = (s && s.remplacant_actif) ? s.responsable_id : '';
+  document.getElementById('remplacantToggleLabel').textContent =
+    '🔁 Remplacement' + ((s && s.remplacant_actif) ? ' ✓' : '');
+  document.getElementById('remplacantToggle').setAttribute('aria-expanded', 'false');
+  document.getElementById('remplacantContent').hidden = true;
+}
+
 // Plan de séance (texte ou lien) : accordéon replié par défaut à chaque
 // changement de séance (option B retenue le 07/09/2026), prérempli si déjà
 // renseigné (dans le classeur ou par un encadrant précédent), modifiable
@@ -364,6 +399,7 @@ function ouvrirSeance() {
   render();
   afficherEncadrant();
   afficherPlanSeance();
+  afficherRemplacant();
   var seanceId = document.getElementById('seance').value;
   fetch(WEB_APP_URL + '?action=fiche&cible=' + encodeURIComponent(CIBLE) +
         '&seance=' + encodeURIComponent(seanceId), { cache: 'no-store' })
@@ -403,6 +439,13 @@ document.getElementById('planToggle').addEventListener('click', function () {
   // recalcule seulement a l'ouverture : replie, l'editeur a un scrollHeight
   // non fiable (contenu masque).
   if (!content.hidden) redimensionnerPlan_();
+});
+
+document.getElementById('remplacantToggle').addEventListener('click', function () {
+  var content = document.getElementById('remplacantContent');
+  var expanded = this.getAttribute('aria-expanded') === 'true';
+  this.setAttribute('aria-expanded', String(!expanded));
+  content.hidden = expanded;
 });
 
 document.getElementById('recherche').addEventListener('input', function (e) {
@@ -499,6 +542,7 @@ document.getElementById('btnSave').addEventListener('click', function () {
     idToken: idToken,
     seance_id: document.getElementById('seance').value,
     plan_seance: sanitizerPlan_(document.getElementById('planSeance').innerHTML),
+    remplacant_id: document.getElementById('remplacantSelect').value,
     presences: presentsOrder.map(function (id) {
       var p = presents[id];
       return { apneiste_id: id, present: true, qualite: p.qualite, observation: p.observation };
