@@ -351,7 +351,7 @@ function rechercherRemplacants_() {
   var pHabituel = s ? roster.find(function (p) { return String(p.id) === String(s.responsable_habituel_id || ''); }) : null;
   var nomHabituel = (pHabituel ? (pHabituel.prenom + ' ' + pHabituel.nom).trim() : '') || 'encadrant habituel';
   var candidats = roster.filter(function (p) {
-    return normaliserRecherche_(p.role).includes('encadrant') &&
+    return (p.est_encadrant === true || normaliserRecherche_(p.role).includes('encadrant')) &&
       (!q || normaliserRecherche_(p.nom).startsWith(q) || normaliserRecherche_(p.prenom).startsWith(q) ||
        normaliserRecherche_(p.prenom + ' ' + p.nom).startsWith(q));
   }).sort(function (a, b) { return (a.nom + a.prenom).localeCompare(b.nom + b.prenom, 'fr'); });
