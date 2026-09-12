@@ -326,7 +326,7 @@ function presencesCols_(sh) {
 function calculerFiche_(ss, seanceId) {
   var sh = ss.getSheetByName(SHEET_PRESENCES);
   var col = presencesCols_(sh);
-  var iQualite = col['Zone de confort (ID)'] - 1;      // -1 : index 0-based dans row[]
+  var iQualite = (col['Zone de confort (ID)'] || col['Zone de confort']) - 1;
   var iObservation = col['Observation de l\'encadrant'] - 1;
   var values = sh.getDataRange().getValues();
   var presences = [];
@@ -407,7 +407,11 @@ function savePresences_(body) {
   lirePersonnes_(ss).forEach(function (p) { roster[p.id] = p; });
 
   var zonesValides = {};
-  lireListeZoneConfort_(ss).forEach(function (z) { zonesValides[z.id] = true; });
+  var zonesParId = {};
+  lireListeZoneConfort_(ss).forEach(function (z) {
+    zonesValides[z.id] = true;
+    zonesParId[z.id] = z.libelle;
+  });
   // Un classeur n'est « migré » vers le modèle ID+libellé que s'il a une
   // table Listes!K:M non vide (aujourd'hui, uniquement TEST-L2) — sur tout
   // autre classeur, la zone de confort reste un texte libre historique et
@@ -443,8 +447,9 @@ function savePresences_(body) {
   // jamais écrite ici) s'intercale désormais entre les deux — on écrit
   // donc chaque colonne séparément plutôt que sur une plage de 2 colonnes
   // contiguës comme avant le 10/09/2026.
-  var colQualite = presencesCols_(sh)['Zone de confort (ID)'];
-  var colObservation = presencesCols_(sh)['Observation de l\'encadrant'];
+  var colonnesPresences = presencesCols_(sh);
+  var colQualite = colonnesPresences['Zone de confort'] || colonnesPresences['Zone de confort (ID)'];
+  var colObservation = colonnesPresences['Observation de l\'encadrant'];
   var nRows = sh.getLastRow() - 4;
   var idCol = sh.getRange(5, 1, nRows, 1).getValues().map(function (r) { return r[0]; });
   var selCol = sh.getRange(5, 2, nRows, 1).getValues().map(function (r) { return r[0]; });
@@ -466,7 +471,14 @@ function savePresences_(body) {
     var row = 5 + disponibles[i];
     var pers = roster[p.apneiste_id];
     sh.getRange(row, 1, 1, 2).setValues([[seanceId, selectionTexte_(pers)]]);
-    sh.getRange(row, colQualite).setValue(p.qualite || '');
+    // Sur TEST-L2 migré vers la saisie par libellé, l'application écrit le
+    // libellé visible en colonne de saisie. La colonne "Zone de confort
+    // (ID)" contient une formule et reste la donnée technique de référence.
+    // Les autres classeurs conservent leur comportement historique.
+    var qualiteEcrite = colonnesPresences['Zone de confort'] && zoneConfortMigree
+      ? (p.qualite === '' || p.qualite === undefined || p.qualite === null ? '' : zonesParId[p.qualite])
+      : (p.qualite || '');
+    sh.getRange(row, colQualite).setValue(qualiteEcrite);
     sh.getRange(row, colObservation).setValue(p.observation || '');
   });
   // lignes qui appartenaient à la séance mais ne sont plus nécessaires —
@@ -955,4 +967,76 @@ function corrigerFormulesLibellePresences(cible) {
   var resultat = { colonneLibellePresences: colLibelle, presencesLignesFormulees: nRows };
   Logger.log(JSON.stringify(resultat));
   return resultat;
+}
+
+// Migration ciblée TEST-L2 vers une saisie humaine par libellé : la colonne
+// F affiche une liste déroulante (Confort / Challenge / Limite) et la colonne
+// G calcule l'ID stable correspondant. Les ID déjà enregistrés en F servent
+// de source de vérité pendant la migration, afin de préserver l'historique.
+function migrerSaisieZoneConfortParLibelle(cible) {
+  if (cible !== 'TEST-L2') {
+    throw new Error('migration autorisée uniquement pour TEST-L2');
+  }
+  var ss = ouvrirClasseur_(cible);
+  var liste = ss.getRangeByName('ListeZoneConfort');
+  if (!liste) throw new Error('plage ListeZoneConfort introuvable');
+  var sh = ss.getSheetByName(SHEET_PRESENCES);
+  var col = presencesCols_(sh);
+  if (col['Zone de confort'] && col['Zone de confort (ID)']) {
+    return {
+      cible: cible,
+      colonneSaisie: col['Zone de confort'],
+      colonneId: col['Zone de confort (ID)'],
+      dejaMigree: true
+    };
+  }
+  var colId = col['Zone de confort (ID)'];
+  var colLibelle = col['Zone de confort (libellé)'];
+  if (!colId || !colLibelle) {
+    throw new Error('structure initiale ID/libellé introuvable');
+  }
+
+  var valeursListe = liste.getValues();
+  var libelleParId = {};
+  var libellesActifs = [];
+  valeursListe.forEach(function (row) {
+    if (row[0] === '' || row[0] === null) return;
+    libelleParId[String(row[0])] = row[1];
+    if (row[2] === 'oui') libellesActifs.push(row[1]);
+  });
+  if (!libellesActifs.length) throw new Error('aucune zone de confort active');
+
+  var nRows = sh.getMaxRows() - 4;
+  var idsExistants = sh.getRange(5, colId, nRows, 1).getValues();
+  var libelles = idsExistants.map(function (row) {
+    var id = row[0];
+    if (id === '' || id === null) return [''];
+    var libelle = libelleParId[String(id)];
+    if (!libelle) throw new Error('ID de zone inconnu dans Presences : ' + id);
+    return [libelle];
+  });
+
+  sh.getRange(4, colId).setValue('Zone de confort');
+  sh.getRange(4, colLibelle).setValue('Zone de confort (ID)');
+  sh.getRange(5, colId, nRows, 1).setValues(libelles);
+
+  var formules = [];
+  for (var r = 0; r < nRows; r++) {
+    var celluleLibelle = sh.getRange(5 + r, colId).getA1Notation();
+    formules.push(['=IFERROR(INDEX(ListeZoneConfort;MATCH(' + celluleLibelle +
+      ';INDEX(ListeZoneConfort;0;2);0);1);"")']);
+  }
+  sh.getRange(5, colLibelle, nRows, 1).setFormulas(formules);
+
+  return {
+    cible: cible,
+    colonneSaisie: colId,
+    colonneId: colLibelle,
+    lignesMigrees: nRows,
+    valeurs: libellesActifs
+  };
+}
+
+function migrerSaisieZoneConfortTestL2() {
+  return migrerSaisieZoneConfortParLibelle('TEST-L2');
 }
