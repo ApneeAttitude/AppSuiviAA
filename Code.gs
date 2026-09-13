@@ -30,6 +30,8 @@ var CLASSEURS = {
   'TEST-L3':  'REMPLACER_PAR_ID_CLASSEUR_TEST_L3',
   'TEST-DNF1': '1T9l-Vmy6v0-GtRuOjrq8aZAVXsC6474FL0RxhnaZgdI',
   'TEST-DNF2': '1E3OoYTEWQ07Ykmbydwkf08Hns1e1YVR1ofOThezeZ94',
+  'PROD-DNF1': '1kc_G0xQx2SjPIHWUdGB_tt_HKN4cZQUWsFMAPttX21g',
+  'PROD-DNF2': '1X8E-TMjNh2nvH71MLeJ2DJrzwUvun0eNsD0lTMtqa_c',
   'PROD-L1':  '1K2h_E7NaJwGuGiAZn_qqhoMHZGxbW39v-j1_j8x9Pf8',
   'PROD-L2':  '1ANbbV-lc9GZeVHQH8X4mFOaMKo4s8wB5TrnmX96WEko',
   'PROD-L3':  '1gVjJxXIXzvfJUObElSu8D3dnFRHTNcCWemQH-JwDsRY',
@@ -1252,6 +1254,76 @@ function preparerDnf2Test() { return preparerDnfTest_('TEST-DNF2'); }
 function preparerDnfTests() {
   return [preparerDnf1Test(), preparerDnf2Test()];
 }
+
+// Même migration pour les deux copies DNF de production. La liste fermée
+// empêche toute écriture sur les autres classeurs de production.
+function migrerZoneConfortDnfProd_(cible) {
+  if (['PROD-DNF1', 'PROD-DNF2'].indexOf(cible) === -1) {
+    throw new Error('migration Zone de confort autorisée uniquement pour PROD-DNF1 et PROD-DNF2');
+  }
+  var ss = ouvrirClasseur_(cible);
+  var shP = ss.getSheetByName(SHEET_PRESENCES);
+  var cols = presencesCols_(shP);
+  if (ss.getRangeByName('ListeZoneConfort') && cols['Zone de confort'] && cols['Zone de confort (ID)']) {
+    return { cible: cible, dejaMigre: true };
+  }
+  if (!cols['Zone de confort'] || cols['Zone de confort (ID)']) {
+    throw new Error('structure Presences inattendue pour ' + cible);
+  }
+
+  var shL = ss.getSheetByName(SHEET_LISTES);
+  var titres = shL.getRange(1, 1, 1, shL.getLastColumn()).getValues()[0];
+  var colZone = titres.indexOf('Zone de confort') + 1;
+  if (!colZone) throw new Error('liste Zone de confort introuvable');
+  var definitions = [[1, 'Confort', 'oui'], [2, 'Challenge', 'oui'], [3, 'Limite', 'oui']];
+  // La liste historique occupe une seule colonne : on insère deux colonnes
+  // afin de préserver les listes Nature et Statut déjà présentes à droite.
+  shL.insertColumnsAfter(colZone, 2);
+  shL.getRange(1, colZone).setValue('Zone de confort');
+  shL.getRange(2, colZone, 1, 3).setValues([['ID', 'Libellé', 'Actif']]);
+  shL.getRange(3, colZone, definitions.length, 3).setValues(definitions);
+  ss.setNamedRange('ListeZoneConfort', shL.getRange(3, colZone, definitions.length, 3));
+
+  var colLibelle = cols['Zone de confort'];
+  shP.insertColumnAfter(colLibelle);
+  var colId = colLibelle + 1;
+  var ref = shP.getRange(4, colLibelle);
+  shP.getRange(4, colId).setValue('Zone de confort (ID)')
+    .setBackground(ref.getBackground()).setFontColor(ref.getFontColor()).setFontWeight(ref.getFontWeight());
+  var nRows = shP.getMaxRows() - 4;
+  var formules = [];
+  for (var r = 5; r < 5 + nRows; r++) {
+    formules.push(['=IFERROR(INDEX(ListeZoneConfort;MATCH(' + shP.getRange(r, colLibelle).getA1Notation() + ';INDEX(ListeZoneConfort;0;2);0);1);"")']);
+  }
+  shP.getRange(5, colId, nRows, 1).setFormulas(formules);
+  shP.getRange(5, colLibelle, nRows, 1).setDataValidation(
+    SpreadsheetApp.newDataValidation().requireValueInRange(shL.getRange(3, colZone + 1, definitions.length, 1), true).setAllowInvalid(false).build()
+  );
+  SpreadsheetApp.flush();
+  return { cible: cible, colonneLibelle: colLibelle, colonneId: colId, valeurs: definitions.length };
+}
+
+
+// Prépare exclusivement les deux copies DNF de PROD. Elle est séparée de la
+// procédure TEST afin qu'une mauvaise cible ne puisse pas modifier un autre
+// classeur. À exécuter manuellement avant toute publication des pages DNF.
+function preparerDnfProd_(cible) {
+  if (['PROD-DNF1', 'PROD-DNF2'].indexOf(cible) === -1) {
+    throw new Error('préparation DNF PROD autorisée uniquement pour PROD-DNF1 et PROD-DNF2');
+  }
+  var ss = ouvrirClasseur_(cible);
+  if (ss.getName().indexOf('AA - Suivi DNF') !== 0 || ss.getName().indexOf('TEST') !== -1) {
+    throw new Error('nom de classeur DNF PROD inattendu : ' + ss.getName());
+  }
+  return {
+    cible: cible,
+    zoneConfort: migrerZoneConfortDnfProd_(cible),
+    statuts: migrerStatutsSeance(cible)
+  };
+}
+
+function preparerDnf1Prod() { return preparerDnfProd_('PROD-DNF1'); }
+function preparerDnf2Prod() { return preparerDnfProd_('PROD-DNF2'); }
 
 // Migration des statuts de séance pour un classeur ciblé. Elle conserve la
 // colonne I "Statut" telle qu'elle est aujourd'hui : celle-ci reste lisible

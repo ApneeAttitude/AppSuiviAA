@@ -43,6 +43,16 @@ Sheet et à une page sous `_test/DNF1/` ou `_test/DNF2/`. Elles utilisent
 le déploiement Apps Script TEST ; elles ne doivent jamais pointer vers une
 cible `PROD-*`. Avant leur première utilisation, lancer une fois `preparerDnf1Test` puis `preparerDnf2Test` dans l’éditeur Apps Script : ces migrations créent les tables ID/libellé de Zone de confort et Statut de séance sans modifier les autres lignes.
 
+
+Les copies de production DNF1 et DNF2 possèdent depuis le 13/09/2026 les
+cibles distinctes `PROD-DNF1` et `PROD-DNF2`. Avant toute publication, lancer
+une fois `preparerDnf1Prod`, puis `preparerDnf2Prod` : ces fonctions sont
+strictement limitées à ces deux cibles et créent les listes normalisées de Zone
+de confort et de Statut de séance. Leur exécution ne publie rien. La livraison
+nécessite ensuite, dans un travail séparé, des pages `DNF1/` et `DNF2/` qui
+pointent vers l’URL du déploiement PROD, puis la promotion explicite d’une
+version validée vers ce déploiement.
+
 ### Promotion d'une version (DEV → TEST → PROD)
 
 1. Modifier `Code.gs`, enregistrer (Cmd+S) — ça crée une nouvelle version
