@@ -48,6 +48,34 @@
     border-radius: 8px; margin-top: 4px;
   }
   label { font-size: 13px; color: rgba(22,32,43,0.65); display: block; margin-top: 10px; }
+  .seance-heading {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    margin-top: 10px;
+  }
+  .seance-heading > label { margin-top: 0; }
+  .status-pill-wrap { position: relative; flex: 0 0 auto; }
+  .status-pill-wrap::after {
+    content: "⌄"; position: absolute; right: 11px; top: 50%; transform: translateY(-57%);
+    color: currentColor; font-size: 15px; font-weight: 700; pointer-events: none;
+  }
+  #statut {
+    width: auto; max-width: 145px; min-height: 36px; margin: 0;
+    padding: 7px 31px 7px 13px; border-radius: 999px;
+    font-size: 13px; font-weight: 700; line-height: 1.2;
+    appearance: none; -webkit-appearance: none; cursor: pointer;
+    transition: color .15s ease, background .15s ease, border-color .15s ease;
+  }
+  #statut.status-planifiee { color: #155e75; background: rgba(224,242,254,.88); border-color: #67b8d3; }
+  #statut.status-tenue { color: #166534; background: rgba(220,252,231,.9); border-color: #6fca8d; }
+  #statut.status-annulee { color: #991b1b; background: rgba(254,226,226,.9); border-color: #e78a8a; }
+  #statut.status-fermee { color: #475569; background: rgba(226,232,240,.9); border-color: #a8b3c2; }
+  #statut.status-indisponible { color: #5b6470; background: rgba(241,245,249,.8); border-color: #cbd5e1; }
+  #statut:focus-visible { outline: 3px solid #e3a331; outline-offset: 2px; }
+  #statut:disabled { cursor: default; opacity: .72; }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+  }
   .encadrant-info { font-size: 13px; color: rgba(22,32,43,0.75); margin-top: 8px; min-height: 16px; }
   .encadrant-info strong { color: #0f6e6a; }
   .encadrant-row { display: flex; align-items: center; gap: 8px; }
@@ -185,10 +213,14 @@
 
   <div id="app">
     <div class="card">
-      <label for="seance">Séance</label>
+      <div class="seance-heading">
+        <label for="seance">Séance</label>
+        <div class="status-pill-wrap">
+          <label for="statut" class="sr-only">Statut de la séance</label>
+          <select id="statut" aria-label="Statut de la séance"></select>
+        </div>
+      </div>
       <select id="seance"></select>
-      <label for="statut">Statut de la séance</label>
-      <select id="statut"></select>
       <div class="encadrant-row">
         <div id="encadrant" class="encadrant-info" aria-live="polite"></div>
         <button type="button" id="remplacantOuvrir" class="replacement-button" aria-haspopup="dialog"><span class="replacement-button-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h11l-3-3M17 17H6l3 3"/></svg></span><span id="remplacantOuvrirLabel">Remplacer</span></button>
@@ -326,6 +358,15 @@ var remplacementInitialId = '';
 function seanceCourante_() {
   return seances.find(function (s) { return s.id === document.getElementById('seance').value; });
 }
+function appliquerStyleStatut_(select) {
+  select.classList.remove('status-planifiee', 'status-tenue', 'status-annulee',
+                          'status-fermee', 'status-indisponible');
+  var classes = {
+    '1': 'status-planifiee', '2': 'status-tenue',
+    '3': 'status-annulee', '4': 'status-fermee'
+  };
+  select.classList.add(classes[String(select.value)] || 'status-indisponible');
+}
 function afficherStatutSeance() {
   var select = document.getElementById('statut');
   var s = seanceCourante_();
@@ -339,6 +380,7 @@ function afficherStatutSeance() {
     indisponible.textContent = s && s.statut ? s.statut : 'Statut indisponible';
     indisponible.value = '';
     select.appendChild(indisponible);
+    appliquerStyleStatut_(select);
     select.disabled = true;
     return;
   }
@@ -350,8 +392,12 @@ function afficherStatutSeance() {
   });
   select.value = valeur;
   if (select.value === '') select.value = String(options[0].id);
+  appliquerStyleStatut_(select);
   select.disabled = !s;
 }
+document.getElementById('statut').addEventListener('change', function () {
+  appliquerStyleStatut_(this);
+});
 function initialiserRemplacement_() {
   var s = seanceCourante_();
   remplacementInitialId = s && s.remplacant_actif ? String(s.responsable_id || '') : '';
