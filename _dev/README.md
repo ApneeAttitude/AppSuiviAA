@@ -37,6 +37,12 @@ partagé par les 3 déploiements, y ajouter une entrée pour TEST ou PROD
 n'affecte PAS automatiquement les autres paliers tant qu'on ne fait pas
 « Nouvelle version ▸ Déployer » sur LEUR déploiement respectif.
 
+Depuis le 13/09/2026, les lignes DNF de test utilisent les cibles
+`TEST-DNF1` et `TEST-DNF2`, chacune reliée à son propre classeur Google
+Sheet et à une page sous `_test/DNF1/` ou `_test/DNF2/`. Elles utilisent
+le déploiement Apps Script TEST ; elles ne doivent jamais pointer vers une
+cible `PROD-*`.
+
 ### Promotion d'une version (DEV → TEST → PROD)
 
 1. Modifier `Code.gs`, enregistrer (Cmd+S) — ça crée une nouvelle version
