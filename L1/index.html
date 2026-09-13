@@ -48,6 +48,19 @@
     border-radius: 8px; margin-top: 4px;
   }
   label { font-size: 13px; color: rgba(22,32,43,0.65); display: block; margin-top: 10px; }
+  .seance-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; }
+  .seance-heading > label { margin-top: 0; }
+  .status-pill-wrap { position: relative; flex: 0 0 auto; }
+  .status-pill-wrap::after { content: "⌄"; position: absolute; right: 11px; top: 50%; transform: translateY(-57%); color: currentColor; font-size: 15px; font-weight: 700; pointer-events: none; }
+  #statut { width: auto; max-width: 145px; min-height: 36px; margin: 0; padding: 7px 31px 7px 13px; border-radius: 999px; font-size: 13px; font-weight: 700; line-height: 1.2; appearance: none; -webkit-appearance: none; cursor: pointer; transition: color .15s ease, background .15s ease, border-color .15s ease; }
+  #statut.status-planifiee { color: #155e75; background: rgba(224,242,254,.88); border-color: #67b8d3; }
+  #statut.status-tenue { color: #166534; background: rgba(220,252,231,.9); border-color: #6fca8d; }
+  #statut.status-annulee { color: #991b1b; background: rgba(254,226,226,.9); border-color: #e78a8a; }
+  #statut.status-fermee { color: #475569; background: rgba(226,232,240,.9); border-color: #a8b3c2; }
+  #statut.status-indisponible { color: #5b6470; background: rgba(241,245,249,.8); border-color: #cbd5e1; }
+  #statut:focus-visible { outline: 3px solid #e3a331; outline-offset: 2px; }
+  #statut:disabled { cursor: default; opacity: .72; }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
   .encadrant-info { font-size: 13px; color: rgba(22,32,43,0.75); margin-top: 8px; min-height: 16px; }
   .encadrant-info strong { color: #0f6e6a; }
   .encadrant-row { display: flex; align-items: center; gap: 8px; }
@@ -185,7 +198,13 @@
 
   <div id="app">
     <div class="card">
-      <label for="seance">Séance</label>
+      <div class="seance-heading">
+        <label for="seance">Séance</label>
+        <div class="status-pill-wrap">
+          <label for="statut" class="sr-only">Statut de la séance</label>
+          <select id="statut" aria-label="Statut de la séance"></select>
+        </div>
+      </div>
       <select id="seance"></select>
       <div class="encadrant-row">
         <div id="encadrant" class="encadrant-info" aria-live="polite"></div>
@@ -254,6 +273,7 @@ var idToken = null;
 var roster = [];
 var seances = [];
 var zonesConfort = [];  // {id, libelle, actif} — cf. Code.gs lireListeZoneConfort_ (09/09/2026)
+var statutsSeance = []; // {id, libelle, actif} — même modèle que zonesConfort
 var presents = {};   // apneiste_id -> {id, nom, prenom, qualite, observation}
 var presentsOrder = [];  // ordre d'affichage : dernier ajoute en tete (demande du 06/09/2026)
 
@@ -285,6 +305,7 @@ function chargerDonnees() {
       roster = d.roster;
       seances = d.seances;
       zonesConfort = d.listesZoneConfort || [];
+      statutsSeance = d.listesStatutsSeance || [];
       remplirSeances();
     })
     .catch(function (e) { afficherMessage('Erreur de chargement : ' + e, true); });
@@ -322,6 +343,30 @@ var remplacementInitialId = '';
 function seanceCourante_() {
   return seances.find(function (s) { return s.id === document.getElementById('seance').value; });
 }
+function appliquerStyleStatut_(select) {
+  select.classList.remove('status-planifiee', 'status-tenue', 'status-annulee', 'status-fermee', 'status-indisponible');
+  var classes = {'1':'status-planifiee','2':'status-tenue','3':'status-annulee','4':'status-fermee'};
+  select.classList.add(classes[String(select.value)] || 'status-indisponible');
+}
+function afficherStatutSeance() {
+  var select = document.getElementById('statut');
+  var s = seanceCourante_();
+  var valeur = s ? String(s.statut_id || '') : '';
+  var options = statutsSeance.filter(function (x) { return x.actif || String(x.id) === valeur; });
+  select.innerHTML = '';
+  if (!options.length) {
+    var indisponible = document.createElement('option');
+    indisponible.textContent = s && s.statut ? s.statut : 'Statut indisponible';
+    indisponible.value = '';
+    select.appendChild(indisponible);
+    appliquerStyleStatut_(select); select.disabled = true; return;
+  }
+  options.forEach(function (x) { var option = document.createElement('option'); option.value = x.id; option.textContent = x.libelle; select.appendChild(option); });
+  select.value = valeur;
+  if (select.value === '') select.value = String(options[0].id);
+  appliquerStyleStatut_(select); select.disabled = !s;
+}
+document.getElementById('statut').addEventListener('change', function () { appliquerStyleStatut_(this); });
 function initialiserRemplacement_() {
   var s = seanceCourante_();
   remplacementInitialId = s && s.remplacant_actif ? String(s.responsable_id || '') : '';
@@ -488,6 +533,7 @@ function ouvrirSeance() {
   presents = {};
   presentsOrder = [];
   render();
+  afficherStatutSeance();
   initialiserRemplacement_();
   afficherPlanSeance();
   var seanceId = document.getElementById('seance').value;
@@ -639,6 +685,7 @@ document.getElementById('btnSave').addEventListener('click', function () {
   var btn = this;
   btn.disabled = true;
   document.getElementById('seance').disabled = true;
+  document.getElementById('statut').disabled = true;
   document.getElementById('remplacantOuvrir').disabled = true;
   afficherMessage('Enregistrement…', false);
   var payload = {
@@ -646,6 +693,7 @@ document.getElementById('btnSave').addEventListener('click', function () {
     cible: CIBLE,
     idToken: idToken,
     seance_id: document.getElementById('seance').value,
+    statut_id: document.getElementById('statut').value === '' ? null : Number(document.getElementById('statut').value),
     plan_seance: sanitizerPlan_(document.getElementById('planSeance').innerHTML),
     remplacant_id: remplacementId === remplacementInitialId ? null : remplacementId,
     presences: presentsOrder.map(function (id) {
@@ -662,6 +710,7 @@ document.getElementById('btnSave').addEventListener('click', function () {
     .then(function (d) {
       btn.disabled = false;
       document.getElementById('seance').disabled = false;
+      document.getElementById('statut').disabled = false;
       document.getElementById('remplacantOuvrir').disabled = false;
       if (!d.ok) { afficherMessage(d.error, true); return; }
       var s = seanceCourante_();
@@ -672,18 +721,21 @@ document.getElementById('btnSave').addEventListener('click', function () {
       s.encadrant_nom = nomAffiche;
       remplacementInitialId = remplacementId;
       afficherEncadrant();
-      afficherMessage(d.saved + ' présence(s) enregistrée(s).', false);
+      afficherMessage(d.saved + ' présence(s) enregistrée(s).' + (d.statut_force_tenue ? ' Statut passé automatiquement à « tenue ».' : ''), false);
       // Recharge le nom habituel résolu par le serveur après un retour au titulaire.
       fetch(WEB_APP_URL + '?action=data&cible=' + encodeURIComponent(CIBLE), { cache: 'no-store' })
         .then(function (r) { return r.json(); }).then(function (data) {
           if (!data.ok) return;
           seances = data.seances;
+          statutsSeance = data.listesStatutsSeance || [];
+          afficherStatutSeance();
           if (document.getElementById('seance').value === payload.seance_id && remplacementId === remplacementInitialId) initialiserRemplacement_();
         }).catch(function () { /* La sauvegarde a réussi ; le nom sera relu à la prochaine ouverture. */ });
     })
     .catch(function (e) {
       btn.disabled = false;
       document.getElementById('seance').disabled = false;
+      document.getElementById('statut').disabled = false;
       document.getElementById('remplacantOuvrir').disabled = false;
       afficherMessage('Échec de l\'enregistrement : ' + e, true);
     });
