@@ -473,6 +473,47 @@ function ecrireStatutSeance_(ss, seanceId, statutId) {
   }
 }
 
+// Règle métier validée le 13/09/2026 : une séance passée pour laquelle au
+// moins une présence vient d'être enregistrée est nécessairement "tenue".
+// La comparaison porte sur la date civile dans le fuseau du script : une
+// séance du jour n'est pas considérée comme passée, même si son horaire est
+// terminé. Un classeur sans ListeStatutsSeance n'est pas encore migré et
+// conserve son comportement historique, ce qui protège les PROD actuelles.
+function forcerStatutTenueSiNecessaire_(ss, seanceId, nombrePresences) {
+  if (!nombrePresences) return false;
+  var statuts = lireListeStatutsSeance_(ss);
+  if (!statuts.length) return false;
+
+  var statutTenue = statuts.filter(function (x) {
+    return String(x.libelle || '').toLowerCase().trim() === 'tenue';
+  })[0];
+  if (!statutTenue) throw new Error('statut "tenue" introuvable dans le référentiel');
+
+  var sh = ss.getSheetByName(SHEET_CALENDRIER);
+  var nRows = sh.getLastRow() - 4;
+  var values = sh.getRange(5, 1, nRows, Math.max(9, sh.getLastColumn())).getValues();
+  var idx = -1;
+  for (var i = 0; i < values.length; i++) {
+    if (values[i][0] === seanceId) { idx = i; break; }
+  }
+  if (idx === -1) throw new Error('séance introuvable dans Calendrier : ' + seanceId);
+
+  var dateSeance = values[idx][1];
+  if (Object.prototype.toString.call(dateSeance) !== '[object Date]') {
+    Logger.log('Statut non automatisé : date invalide pour ' + seanceId);
+    return false;
+  }
+  var tz = Session.getScriptTimeZone();
+  var cleDateSeance = Utilities.formatDate(dateSeance, tz, 'yyyyMMdd');
+  var cleAujourdhui = Utilities.formatDate(new Date(), tz, 'yyyyMMdd');
+  if (cleDateSeance >= cleAujourdhui) return false;
+
+  var libelleActuel = String(values[idx][8] || '').toLowerCase().trim();
+  if (libelleActuel === 'tenue') return false;
+  ecrireStatutSeance_(ss, seanceId, statutTenue.id);
+  return true;
+}
+
 function savePresences_(body) {
   var email = verifierJeton_(body.idToken);
   var seanceId = body.seance_id;
@@ -569,6 +610,7 @@ function savePresences_(body) {
   ecrirePlanSeance_(ss, seanceId, body.plan_seance);
   ecrireRemplacant_(ss, seanceId, body.remplacant_id, roster);
   ecrireStatutSeance_(ss, seanceId, body.statut_id);
+  var statutForceTenue = forcerStatutTenueSiNecessaire_(ss, seanceId, presences.length);
 
   // rafraîchit immédiatement le cache "fiche" de cette séance : la
   // prochaine lecture (même appareil ou un autre) voit tout de suite le
@@ -583,7 +625,10 @@ function savePresences_(body) {
   // CACHE_TTL_DONNEES.
   cache.remove('v2|' + body.cible + '|data');
 
-  return { ok: true, saved: presences.length, par: email };
+  return {
+    ok: true, saved: presences.length, par: email,
+    statut_force_tenue: statutForceTenue
+  };
 }
 
 function selectionTexte_(pers) {

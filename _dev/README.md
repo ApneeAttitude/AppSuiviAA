@@ -261,8 +261,17 @@ de séance et les formules existantes.
 `migrerStatutsSeanceTestL2` est une opération manuelle, limitée à TEST-L2.
 Elle vérifie les statuts déjà présents avant toute écriture, crée la table et
 la validation, puis contrôle que chaque libellé historique reçoit un ID.
+
+Depuis la version TEST 42, `savePresences_` applique aussi une règle métier
+côté serveur : si l'enregistrement final contient au moins une présence et
+que la date de la séance est strictement antérieure à la date courante, le
+statut est forcé à `tenue`. La comparaison utilise la date civile dans le
+fuseau Apps Script ; une séance du jour n'est donc pas considérée comme
+passée. La règle est ignorée lorsqu'un classeur ne possède pas la plage
+`ListeStatutsSeance`, afin de ne pas affecter un environnement non migré.
+
 Après validation fonctionnelle, créer une migration équivalente pour les
-classeur PROD concernés, à lancer d'abord sur une copie de sauvegarde. Ne
+classeurs PROD concernés, à lancer d'abord sur une copie de sauvegarde. Ne
 promouvoir le déploiement Apps Script TEST vers PROD qu'après cette migration
 et une validation explicite.
 

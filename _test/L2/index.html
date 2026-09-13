@@ -752,7 +752,8 @@ document.getElementById('btnSave').addEventListener('click', function () {
       s.encadrant_nom = nomAffiche;
       remplacementInitialId = remplacementId;
       afficherEncadrant();
-      afficherMessage(d.saved + ' présence(s) enregistrée(s).', false);
+      afficherMessage(d.saved + ' présence(s) enregistrée(s).' +
+        (d.statut_force_tenue ? ' Statut passé automatiquement à « tenue ».' : ''), false);
       // Recharge le nom habituel résolu par le serveur après un retour au titulaire.
       fetch(WEB_APP_URL + '?action=data&cible=' + encodeURIComponent(CIBLE), { cache: 'no-store' })
         .then(function (r) { return r.json(); }).then(function (data) {
