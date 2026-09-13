@@ -41,7 +41,7 @@ Depuis le 13/09/2026, les lignes DNF de test utilisent les cibles
 `TEST-DNF1` et `TEST-DNF2`, chacune reliée à son propre classeur Google
 Sheet et à une page sous `_test/DNF1/` ou `_test/DNF2/`. Elles utilisent
 le déploiement Apps Script TEST ; elles ne doivent jamais pointer vers une
-cible `PROD-*`.
+cible `PROD-*`. Avant leur première utilisation, lancer une fois `preparerDnf1Test` puis `preparerDnf2Test` dans l’éditeur Apps Script : ces migrations créent les tables ID/libellé de Zone de confort et Statut de séance sans modifier les autres lignes.
 
 ### Promotion d'une version (DEV → TEST → PROD)
 

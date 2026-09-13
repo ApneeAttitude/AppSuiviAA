@@ -1192,6 +1192,67 @@ function migrerSaisieZoneConfortTestL2() {
   return migrerSaisieZoneConfortParLibelle('TEST-L2');
 }
 
+// Migration des modèles DNF fraîchement générés vers le même principe que
+// TEST-L2 : le libellé reste lisible dans Presences, l'ID stable est calculé
+// dans la colonne voisine. Limité explicitement aux deux classeurs de TEST.
+function migrerZoneConfortDnfTest_(cible) {
+  if (['TEST-DNF1', 'TEST-DNF2'].indexOf(cible) === -1) {
+    throw new Error('migration Zone de confort autorisée uniquement pour TEST-DNF1 et TEST-DNF2');
+  }
+  var ss = ouvrirClasseur_(cible);
+  var shP = ss.getSheetByName(SHEET_PRESENCES);
+  var cols = presencesCols_(shP);
+  if (ss.getRangeByName('ListeZoneConfort') && cols['Zone de confort'] && cols['Zone de confort (ID)']) {
+    return { cible: cible, dejaMigre: true };
+  }
+  if (!cols['Zone de confort'] || cols['Zone de confort (ID)']) {
+    throw new Error('structure Presences inattendue pour ' + cible);
+  }
+
+  var shL = ss.getSheetByName(SHEET_LISTES);
+  var titres = shL.getRange(1, 1, 1, shL.getLastColumn()).getValues()[0];
+  var colZone = titres.indexOf('Zone de confort') + 1;
+  if (!colZone) throw new Error('liste Zone de confort introuvable');
+  var definitions = [[1, 'Confort', 'oui'], [2, 'Challenge', 'oui'], [3, 'Limite', 'oui']];
+  // La liste historique occupe une seule colonne : on insère deux colonnes
+  // afin de préserver les listes Nature et Statut déjà présentes à droite.
+  shL.insertColumnsAfter(colZone, 2);
+  shL.getRange(1, colZone).setValue('Zone de confort');
+  shL.getRange(2, colZone, 1, 3).setValues([['ID', 'Libellé', 'Actif']]);
+  shL.getRange(3, colZone, definitions.length, 3).setValues(definitions);
+  ss.setNamedRange('ListeZoneConfort', shL.getRange(3, colZone, definitions.length, 3));
+
+  var colLibelle = cols['Zone de confort'];
+  shP.insertColumnAfter(colLibelle);
+  var colId = colLibelle + 1;
+  var ref = shP.getRange(4, colLibelle);
+  shP.getRange(4, colId).setValue('Zone de confort (ID)')
+    .setBackground(ref.getBackground()).setFontColor(ref.getFontColor()).setFontWeight(ref.getFontWeight());
+  var nRows = shP.getMaxRows() - 4;
+  var formules = [];
+  for (var r = 5; r < 5 + nRows; r++) {
+    formules.push(['=IFERROR(INDEX(ListeZoneConfort;MATCH(' + shP.getRange(r, colLibelle).getA1Notation() + ';INDEX(ListeZoneConfort;0;2);0);1);"")']);
+  }
+  shP.getRange(5, colId, nRows, 1).setFormulas(formules);
+  shP.getRange(5, colLibelle, nRows, 1).setDataValidation(
+    SpreadsheetApp.newDataValidation().requireValueInRange(shL.getRange(3, colZone + 1, definitions.length, 1), true).setAllowInvalid(false).build()
+  );
+  SpreadsheetApp.flush();
+  return { cible: cible, colonneLibelle: colLibelle, colonneId: colId, valeurs: definitions.length };
+}
+
+// Prépare exclusivement les deux lignes DNF de TEST. À lancer une fois après
+// leur création ; les fonctions sont idempotentes en cas de second passage.
+function preparerDnfTest_(cible) {
+  return { cible: cible, zoneConfort: migrerZoneConfortDnfTest_(cible), statuts: migrerStatutsSeance(cible) };
+}
+
+function preparerDnf1Test() { return preparerDnfTest_('TEST-DNF1'); }
+function preparerDnf2Test() { return preparerDnfTest_('TEST-DNF2'); }
+function preparerDnfTests() {
+  return [preparerDnf1Test(), preparerDnf2Test()];
+}
+
 // Migration des statuts de séance pour un classeur ciblé. Elle conserve la
 // colonne I "Statut" telle qu'elle est aujourd'hui : celle-ci reste lisible
 // et éditable dans Google Sheets. L'ID stable est ajouté à la fin du tableau
