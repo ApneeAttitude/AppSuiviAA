@@ -131,7 +131,8 @@ function getData_(cible) {
   var ss = ouvrirClasseur_(cible);
   var resultat = {
     ok: true, roster: lirePersonnes_(ss), seances: lireCalendrier_(ss),
-    listesZoneConfort: lireListeZoneConfort_(ss)
+    listesZoneConfort: lireListeZoneConfort_(ss),
+    listesStatutsSeance: lireListeStatutsSeance_(ss)
   };
   cache.put(cle, JSON.stringify(resultat), CACHE_TTL_DONNEES);
   return resultat;
@@ -214,6 +215,23 @@ function lireListeZoneConfort_(ss) {
   return out;
 }
 
+// Même convention que pour la zone de confort : l'application manipule un
+// identifiant stable, tandis que le classeur et l'interface affichent le
+// libellé. L'absence de plage nommée signifie simplement que le classeur
+// n'est pas encore migré vers ce modèle.
+function lireListeStatutsSeance_(ss) {
+  var rng = ss.getRangeByName('ListeStatutsSeance');
+  if (!rng) return [];
+  var values = rng.getValues();
+  var out = [];
+  for (var r = 0; r < values.length; r++) {
+    var id = values[r][0];
+    if (id === '' || id === null) continue;
+    out.push({ id: id, libelle: values[r][1], actif: values[r][2] === 'oui' });
+  }
+  return out;
+}
+
 // Fenêtre glissante de séances chargées par l'app : pas la peine de charger
 // tout le calendrier, la saisie se fait sur smartphone séance par séance —
 // 2 semaines passées + semaine en cours + semaine suivante suffisent
@@ -257,6 +275,8 @@ function lireCalendrier_(ss) {
     }
   }
   var values = sh.getDataRange().getValues();
+  var header = values[3] || [];
+  var colStatutId = header.indexOf('Statut (ID)');
   var out = [];
   for (var r = 4; r < values.length; r++) {
     var row = values[r];
@@ -294,7 +314,11 @@ function lireCalendrier_(ss) {
       // colonne R : Plan de séance (texte ou lien), saisi depuis l'appli
       // (accordéon repliable — demande du 07/09/2026).
       plan: row[17] || '',
-      statut: row[8] || 'planifiée'
+      // La colonne I conserve le libellé pour la lecture humaine dans le
+      // classeur. La colonne ajoutée en fin de tableau contient l'ID dérivé
+      // par formule et constitue la donnée envoyée par l'application.
+      statut: row[8] || 'planifiée',
+      statut_id: colStatutId === -1 ? '' : (row[colStatutId] || '')
     });
   }
   // tri chronologique croissant : la plus ancienne en premier (demande du
@@ -416,6 +440,39 @@ function ecrireRemplacant_(ss, seanceId, remplacantId, roster) {
   sh.getRange(5 + idx, 14).setValue(selectionTexte_(pers));
 }
 
+// Écrit le libellé du statut dans Calendrier. La colonne "Statut (ID)" est
+// une formule : elle convertit ce libellé en ID stable depuis la plage nommée
+// ListeStatutsSeance, exactement comme pour la zone de confort. Les colonnes
+// de remplacement et de plan ne sont donc jamais déplacées.
+function ecrireStatutSeance_(ss, seanceId, statutId) {
+  if (statutId === undefined || statutId === null || statutId === '') return;
+  var statuts = lireListeStatutsSeance_(ss);
+  if (!statuts.length) {
+    throw new Error('liste des statuts de séance introuvable : classeur non migré');
+  }
+  var statut = statuts.filter(function (x) { return String(x.id) === String(statutId); })[0];
+  if (!statut) throw new Error('statut de séance inconnu du référentiel : ' + statutId);
+  if (!statut.actif) throw new Error('statut de séance inactif : ' + statut.libelle);
+
+  var sh = ss.getSheetByName(SHEET_CALENDRIER);
+  var header = sh.getRange(4, 1, 1, sh.getLastColumn()).getValues()[0];
+  var colStatut = header.indexOf('Statut') + 1;
+  var colStatutId = header.indexOf('Statut (ID)') + 1;
+  if (!colStatut || !colStatutId) {
+    throw new Error('colonnes Statut / Statut (ID) introuvables dans Calendrier');
+  }
+  var nRows = sh.getLastRow() - 4;
+  var ids = sh.getRange(5, 1, nRows, 1).getValues().map(function (r) { return r[0]; });
+  var idx = ids.indexOf(seanceId);
+  if (idx === -1) throw new Error('séance introuvable dans Calendrier : ' + seanceId);
+  var ligne = 5 + idx;
+  sh.getRange(ligne, colStatut).setValue(statut.libelle);
+  SpreadsheetApp.flush();
+  if (String(sh.getRange(ligne, colStatutId).getValue()) !== String(statut.id)) {
+    throw new Error('ID du statut non calculé pour la séance : ' + seanceId);
+  }
+}
+
 function savePresences_(body) {
   var email = verifierJeton_(body.idToken);
   var seanceId = body.seance_id;
@@ -511,6 +568,7 @@ function savePresences_(body) {
 
   ecrirePlanSeance_(ss, seanceId, body.plan_seance);
   ecrireRemplacant_(ss, seanceId, body.remplacant_id, roster);
+  ecrireStatutSeance_(ss, seanceId, body.statut_id);
 
   // rafraîchit immédiatement le cache "fiche" de cette séance : la
   // prochaine lecture (même appareil ou un autre) voit tout de suite le
@@ -1085,6 +1143,105 @@ function migrerSaisieZoneConfortParLibelle(cible) {
 
 function migrerSaisieZoneConfortTestL2() {
   return migrerSaisieZoneConfortParLibelle('TEST-L2');
+}
+
+// Migration ciblée TEST-L2 pour les statuts de séance. Elle conserve la
+// colonne I "Statut" telle qu'elle est aujourd'hui : celle-ci reste lisible
+// et éditable dans Google Sheets. L'ID stable est ajouté à la fin du tableau
+// afin de ne pas décaler les colonnes N à R, déjà utilisées par le
+// remplacement d'encadrant et le plan de séance.
+//
+// Fonction de maintenance à lancer une fois dans l'éditeur Apps Script,
+// jamais depuis doGet/doPost. Les contrôles sont réalisés avant l'écriture.
+function migrerStatutsSeanceTestL2() {
+  var cible = 'TEST-L2';
+  var ss = ouvrirClasseur_(cible);
+  var shCalendrier = ss.getSheetByName(SHEET_CALENDRIER);
+  var headers = shCalendrier.getRange(4, 1, 1, shCalendrier.getLastColumn()).getValues()[0];
+  var colStatut = headers.indexOf('Statut') + 1;
+  var colStatutId = headers.indexOf('Statut (ID)') + 1;
+  var plageExistante = ss.getRangeByName('ListeStatutsSeance');
+
+  if (plageExistante && colStatutId) {
+    return { cible: cible, dejaMigre: true, colonneStatut: colStatut, colonneId: colStatutId };
+  }
+  if (plageExistante || colStatutId) {
+    throw new Error('migration incomplète détectée : ListeStatutsSeance et Statut (ID) doivent être présents ensemble');
+  }
+  if (colStatut !== 9) {
+    throw new Error('structure Calendrier inattendue : Statut attendu en colonne I');
+  }
+
+  // On valide les valeurs réellement présentes avant de créer quoi que ce
+  // soit : aucun statut historique ne doit être transformé à l'aveugle.
+  var definitions = [
+    [1, 'planifiée', 'oui'],
+    [2, 'tenue', 'oui'],
+    [3, 'annulée', 'oui'],
+    [4, 'fermée', 'oui']
+  ];
+  var libellesValides = {};
+  definitions.forEach(function (x) { libellesValides[x[1]] = true; });
+  var nRows = shCalendrier.getMaxRows() - 4;
+  var statutsExistants = shCalendrier.getRange(5, colStatut, nRows, 1).getValues();
+  var inconnus = {};
+  statutsExistants.forEach(function (row) {
+    var v = String(row[0] || '').trim();
+    if (v && !libellesValides[v]) inconnus[v] = true;
+  });
+  if (Object.keys(inconnus).length) {
+    throw new Error('statut(s) inconnu(s), aucune écriture effectuée : ' + Object.keys(inconnus).join(', '));
+  }
+
+  var shListes = ss.getSheetByName(SHEET_LISTES);
+  var colDebut = shListes.getLastColumn() + 2; // une colonne vide de séparation
+  var refTitre = shListes.getRange(1, 1);
+  var refEntete = shListes.getRange(2, 1);
+  shListes.getRange(1, colDebut).setValue('Statuts de séance');
+  shListes.getRange(2, colDebut, 1, 3).setValues([['ID', 'Libellé', 'Actif']]);
+  shListes.getRange(3, colDebut, definitions.length, 3).setValues(definitions);
+  shListes.getRange(1, colDebut, 1, 3)
+    .setBackground(refTitre.getBackground()).setFontColor(refTitre.getFontColor()).setFontWeight('bold');
+  shListes.getRange(2, colDebut, 1, 3)
+    .setBackground(refEntete.getBackground()).setFontColor(refEntete.getFontColor()).setFontWeight('bold');
+  ss.setNamedRange('ListeStatutsSeance', shListes.getRange(3, colDebut, definitions.length, 3));
+
+  // Ajout en fin de Calendrier : aucune colonne existante n'est déplacée.
+  var derniereColonne = shCalendrier.getLastColumn();
+  shCalendrier.insertColumnAfter(derniereColonne);
+  var colId = derniereColonne + 1;
+  shCalendrier.getRange(4, colId).setValue('Statut (ID)')
+    .setBackground(shCalendrier.getRange(4, colStatut).getBackground())
+    .setFontColor(shCalendrier.getRange(4, colStatut).getFontColor())
+    .setFontWeight(shCalendrier.getRange(4, colStatut).getFontWeight());
+  var formules = [];
+  for (var r = 5; r < 5 + nRows; r++) {
+    formules.push(['=IFERROR(INDEX(ListeStatutsSeance;MATCH(I' + r + ';INDEX(ListeStatutsSeance;0;2);0);1);"")']);
+  }
+  shCalendrier.getRange(5, colId, nRows, 1).setFormulas(formules);
+  shCalendrier.getRange(5, colStatut, nRows, 1).setDataValidation(
+    SpreadsheetApp.newDataValidation()
+      .requireValueInRange(shListes.getRange(3, colDebut + 1, definitions.length, 1), true)
+      .setAllowInvalid(false)
+      .build()
+  );
+
+  SpreadsheetApp.flush();
+  var ids = shCalendrier.getRange(5, colId, nRows, 1).getValues();
+  var erreurs = [];
+  for (var i = 0; i < statutsExistants.length; i++) {
+    if (statutsExistants[i][0] && !ids[i][0]) erreurs.push(i + 5);
+  }
+  if (erreurs.length) {
+    throw new Error('ID de statut manquant après migration, lignes : ' + erreurs.slice(0, 10).join(', '));
+  }
+  return {
+    cible: cible,
+    liste: shListes.getRange(3, colDebut, definitions.length, 3).getA1Notation(),
+    colonneStatut: colStatut,
+    colonneId: colId,
+    lignesFormulees: nRows
+  };
 }
 
 // Migration PROD validée sur les cinq copies TEST MIGRATION le 12/09/2026.

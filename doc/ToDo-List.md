@@ -1,6 +1,6 @@
 # ToDo-List — Projet Apnée
 
-Dernière mise à jour : 12/09/2026
+Dernière mise à jour : 13/09/2026
 
 ## Accès et partage — dossier Drive "App Suivi"
 
@@ -71,13 +71,28 @@ Dernière mise à jour : 12/09/2026
 - [ ] **Pousser la branche `test-l2-classeur` vers `main`** : cette branche contient maintenant treize commits locaux non poussés — `d13d82c` (configuration du classeur TEST-L2), `bb8a14b` (neutralisation de DEV-L2/DEV-L3), `94bc1d7` (éditeur de texte riche pour le plan de séance, TEST-L2/TEST-L3), `993b606` (correction de `WEB_APP_URL` manquant), `94bc6a6` (hauteur automatique du plan de séance), `96c774f` (déploiement en PROD de l'éditeur de texte riche, L1-STA), `a190537` (titre de lien personnalisable, TEST-L2/TEST-L3), `2f0148d` (déploiement en PROD du titre de lien personnalisable, L1-STA), `45a3d39` (Zone de confort en listes ID+libellé, TEST-L2 uniquement), `b21f76d` (correction de la régression PROD V-02, voir ci-dessus), les deux commits de la séparation TEST/PROD (mise à jour de `_test/L2/index.html` et `_test/L3/index.html`, puis documentation), et `f91fa77` (réorganisation de l'onglet Listes + colonne « Zone de confort (libellé) » dans Presences, voir ci-dessus) — à pousser depuis un terminal authentifié : `git push origin test-l2-classeur:main` (fast-forward propre, comme pour `test-plan-seance`).
 - [ ] `TEST-L3` reste un placeholder non configuré (`REMPLACER_PAR_ID_CLASSEUR_TEST_L3`) — même traitement que TEST-L2 si besoin d'un jour (dupliquer le classeur L3, mettre à jour `CLASSEURS['TEST-L3']`, redéployer).
 
+## Chantier — Séparer l'application, les modèles et les données du club
+
+Objectif : rendre l'application réutilisable pour une saison ou un club donné, sans versionner dans Git les données opérationnelles du club.
+
+- Créer des modèles neutres et versionnés dans Git : un classeur de paramétrage et un classeur de suivi, sans personnes, inscriptions ni séances réelles.
+- Conserver la Google Sheet `AA - Parametrage 2026-2027`, dans le dossier Drive `AppSuivi`, comme source de données métier du club pour la saison. Elle ne doit pas être suivie par Git.
+- Versionner dans Git les générateurs Python, les modèles neutres et la documentation ; ignorer les classeurs de production, les exports et les données réelles du club.
+- Adapter les générateurs pour qu'ils produisent les classeurs d'un club et d'une saison à partir du modèle et de la source de données indiqués, sans année ou club inscrits en dur.
+- Vérifier les fichiers aujourd'hui suivis par Git, sortir progressivement les classeurs de données du suivi Git sans supprimer les fichiers locaux, puis compléter le fichier `.gitignore`.
+- Préserver dans le modèle les tables de référence normalisées, notamment `Zone de confort` et `Statuts de séance` avec les colonnes `ID`, `libellé` et `Actif`.
+
 ## Fonctionnalités à venir
 
 Idées de fonctionnalités futures, classées par priorité (P1 = prioritaire, P3 = à explorer sans urgence) :
 
 - [x] **P1** — Saisie de la description de la séance (texte et/ou lien) depuis l'appli, ergonomie retenue : accordéon repliable « 📋 Plan de séance » sous le sélecteur de séance (option B), replié par défaut, prérempli si une valeur existe déjà, coché « ✓ » quand rempli. Enregistré avec le même bouton « Enregistrer la séance » que les présences (pas de bouton séparé). Implémenté le 07/09/2026 : `Code.gs` (lecture/écriture colonne R de Calendrier, invalidation du cache « data ») + les 7 `index.html` de ligne + copies _test/_dev L2/L3. **Déployé en PROD le 08/09/2026** (fusion de la branche `test-plan-seance` dans `main`, confirmé visible en ligne) — reste à tester en conditions réelles par Fred, maintenant possible sans risque via l'environnement TEST-L2 ci-dessus.
-- [ ] **P1** — Saisie du remplaçant en cas d'absence de l'encadrant habituel, depuis l'appli. La colonne « Responsable remplaçant » existe déjà dans Calendrier et l'appli affiche déjà le nom résolu (encadrant ou remplaçant), mais la saisie du remplaçant se fait uniquement en éditant directement le Google Sheet — pas possible depuis l'appli elle-même. Reste à faire.
+- [x] **P1** — Saisie du remplaçant depuis l'appli, avec sélection parmi tous les encadrants actifs du club (12/09/2026). La fenêtre de remplacement conserve la ligne fixe permettant de revenir à l'encadrant habituel, recherche dans le roster synchronisé et enregistre l'ID du remplaçant dans `Calendrier`. La source des rôles est l'onglet `Inscriptions` du classeur `AA - Parametrage 2026-2027`, reportée dans l'onglet `Personnes` de chaque classeur de ligne. Les personnes cumulant les rôles élève et encadrant sont éligibles. Validé sur TEST-L2 puis déployé en PROD : Apps Script version 40, pages L1/L2/L3/L4/LC publiées sur GitHub.
+- [ ] **P1** — Afficher et modifier l'état d'une séance depuis l'application. La donnée source est l'onglet `Calendrier`, colonne I (`Statut`). **Implémenté en TEST-L2 le 13/09/2026, en attente de validation fonctionnelle** : la Google Sheet centrale `AA - Parametrage 2026-2027` possède les tables de référence normalisées `Zone de confort` et `Statuts de séance` (`ID`, `Libellé`, `Actif`). TEST-L2 possède sa copie `ListeStatutsSeance` (1=planifiée, 2=tenue, 3=annulée, 4=fermée) ; `Calendrier!I` affiche le libellé via une validation « depuis une plage » et une colonne `Statut (ID)` ajoutée en fin de tableau calcule l’ID. L’application propose le statut sous le sélecteur de séance et enregistre cet ID avec le bouton unique « Enregistrer la séance ». Le déploiement Apps Script **TEST** est en version 41 ; PROD n’est pas concerné. Après validation, prévoir une migration contrôlée des classeurs PROD, puis promouvoir la même version Apps Script et les pages concernées.
+- [x] **P2** — Remplacer le champ d'observation sur une ligne par une zone de texte auto-redimensionnée : hauteur initiale compacte, agrandissement automatique jusqu'à **3 lignes maximum**, puis défilement interne au-delà. Implémenté et publié en TEST-L2, validé par Fred, puis déployé en PROD sur L1/L2/L3/L4/LC (12/09/2026, commit `9aae99d`). Le contenu existant est redimensionné au chargement et le comportement reste adapté au mobile. Le guide PDF a été actualisé avec cette saisie et le bouton de remplacement.
 - [ ] **P3** — Interface dédiée aux apnéistes (et non plus seulement aux encadrants) pour qu'ils renseignent eux-mêmes leur ressenti de séance et leur forme du jour. Développement distinct de l'existant car public différent (apnéistes plutôt qu'encadrants), mais qui permettrait aussi, potentiellement, de corréler les avis encadrants et les avis apnéistes.
+- [x] **P2** — Vérifier les participants rattachés à la ligne 4 : préparer et envoyer un message WhatsApp aux encadrants de L4 afin de confirmer la composition actuelle du groupe, puis mettre à jour le paramétrage si nécessaire.
+- [x] **P2** — Publier le guide d'utilisation AppSuiviAA dans le groupe WhatsApp du club.
 
 ## Refonte du module Suivi — cahier des charges v2
 

@@ -219,6 +219,53 @@ de vérité pour la structure et les données des classeurs. À chaque
    donc l'entrée correspondante dans `CLASSEURS` reste valide sans rien
    retoucher côté script).
 
+## Synchronisation des rôles et remplacements
+
+Le classeur `AA - Parametrage 2026-2027` est la source de référence des rôles
+par ligne : l'onglet `Inscriptions` porte le couple personne, ligne et rôle
+(`élève` ou `encadrant`). La fonction Apps Script `synchroniserEffectifs`
+reporte les inscriptions actives dans l'onglet `Personnes` de chaque classeur
+de ligne, avec une ligne par couple personne/rôle et les groupes associés à ce
+rôle. Les personnes sans inscription active restent présentes dans le
+référentiel, sans rôle.
+
+La liste des remplaçants est construite depuis cet onglet `Personnes`. Elle
+inclut tous les encadrants actifs du club, y compris ceux dont la ligne
+habituelle est différente de la ligne de la séance. Une personne cumulant les
+rôles élève et encadrant reste proposée comme encadrant. Le serveur vérifie
+également ce rôle avant d'enregistrer le remplacement ; seul l'ID est écrit
+dans `Calendrier`.
+
+Pour une évolution de ce mécanisme, synchroniser d'abord le classeur TEST-L2
+avec `synchroniserEffectifsTestL2`, vérifier un encadrant d'une autre ligne,
+puis promouvoir la même version du déploiement Apps Script vers PROD. Après
+validation, lancer `synchroniserEffectifs` pour les cinq lignes PROD et publier
+les pages GitHub correspondantes.
+
+## Statuts de séance
+
+Le classeur central `AA - Parametrage 2026-2027` contient les valeurs de
+référence des statuts dans une table normalisée : `ID`, `Libellé`, `Actif`.
+Les valeurs de la saison 2026-2027 sont `1 / planifiée`, `2 / tenue`,
+`3 / annulée` et `4 / fermée`.
+
+Le pilote TEST-L2 (13/09/2026) reproduit cette table dans son onglet
+`Listes`, sous la plage nommée `ListeStatutsSeance`. La colonne I
+`Calendrier!Statut` reste le libellé lisible et sa validation est une liste
+« depuis une plage » pointant vers `Listes`. Une colonne `Statut (ID)` est
+ajoutée en fin du tableau Calendrier : sa formule déduit l'ID depuis le
+libellé. Elle est volontairement ajoutée à la fin, jamais près de la colonne
+I, afin de ne pas déplacer les colonnes utilisées par le remplaçant, le plan
+de séance et les formules existantes.
+
+`migrerStatutsSeanceTestL2` est une opération manuelle, limitée à TEST-L2.
+Elle vérifie les statuts déjà présents avant toute écriture, crée la table et
+la validation, puis contrôle que chaque libellé historique reçoit un ID.
+Après validation fonctionnelle, créer une migration équivalente pour les
+classeur PROD concernés, à lancer d'abord sur une copie de sauvegarde. Ne
+promouvoir le déploiement Apps Script TEST vers PROD qu'après cette migration
+et une validation explicite.
+
 ## Limites assumées de ce MVP (à ne pas découvrir en prod)
 
 - **Pas de contrôle de couverture** (D-02 : directeur de bassin, responsable
