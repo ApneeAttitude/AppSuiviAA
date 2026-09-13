@@ -45,13 +45,14 @@ cible `PROD-*`. Avant leur première utilisation, lancer une fois `preparerDnf1T
 
 
 Les copies de production DNF1 et DNF2 possèdent depuis le 13/09/2026 les
-cibles distinctes `PROD-DNF1` et `PROD-DNF2`. Avant toute publication, lancer
-une fois `preparerDnf1Prod`, puis `preparerDnf2Prod` : ces fonctions sont
-strictement limitées à ces deux cibles et créent les listes normalisées de Zone
-de confort et de Statut de séance. Leur exécution ne publie rien. La livraison
-nécessite ensuite, dans un travail séparé, des pages `DNF1/` et `DNF2/` qui
-pointent vers l’URL du déploiement PROD, puis la promotion explicite d’une
-version validée vers ce déploiement.
+cibles distinctes `PROD-DNF1` et `PROD-DNF2`. Avant la première publication,
+lancer une fois `preparerDnf1Prod`, puis `preparerDnf2Prod` : ces fonctions
+sont strictement limitées à ces deux cibles et créent les listes normalisées de
+Zone de confort et de Statut de séance. Elles ont été publiées avec les pages
+`DNF1/` et `DNF2/` le 13/09/2026, via Apps Script PROD version 46. Pour une
+nouvelle ligne, conserver la même séquence : migration du classeur, page qui
+pointe vers la cible `PROD-*`, puis promotion explicite d’une version validée
+vers le déploiement PROD.
 
 ### Promotion d'une version (DEV → TEST → PROD)
 
