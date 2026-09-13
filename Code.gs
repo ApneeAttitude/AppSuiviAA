@@ -1190,7 +1190,7 @@ function migrerSaisieZoneConfortTestL2() {
   return migrerSaisieZoneConfortParLibelle('TEST-L2');
 }
 
-// Migration ciblée TEST-L2 pour les statuts de séance. Elle conserve la
+// Migration des statuts de séance pour un classeur ciblé. Elle conserve la
 // colonne I "Statut" telle qu'elle est aujourd'hui : celle-ci reste lisible
 // et éditable dans Google Sheets. L'ID stable est ajouté à la fin du tableau
 // afin de ne pas décaler les colonnes N à R, déjà utilisées par le
@@ -1198,8 +1198,8 @@ function migrerSaisieZoneConfortTestL2() {
 //
 // Fonction de maintenance à lancer une fois dans l'éditeur Apps Script,
 // jamais depuis doGet/doPost. Les contrôles sont réalisés avant l'écriture.
-function migrerStatutsSeanceTestL2() {
-  var cible = 'TEST-L2';
+function migrerStatutsSeance(cible) {
+  if (!cible) throw new Error('cible manquante, ex. migrerStatutsSeance("TEST-L2")');
   var ss = ouvrirClasseur_(cible);
   var shCalendrier = ss.getSheetByName(SHEET_CALENDRIER);
   var headers = shCalendrier.getRange(4, 1, 1, shCalendrier.getLastColumn()).getValues()[0];
@@ -1287,6 +1287,27 @@ function migrerStatutsSeanceTestL2() {
     colonneId: colId,
     lignesFormulees: nRows
   };
+}
+
+// Compatibilité avec la première procédure de test.
+function migrerStatutsSeanceTestL2() {
+  return migrerStatutsSeance('TEST-L2');
+}
+
+// Prépare les classeurs déjà configurés dans CLASSEURS. Cette fonction ne
+// touche pas aux cibles encore placeholders (DNF/STA, TEST-L3, DEV).
+function migrerStatutsSeanceLignesConfigurees() {
+  var cibles = ['TEST-L2', 'PROD-L1', 'PROD-L2', 'PROD-L3', 'PROD-L4', 'PROD-LC'];
+  var resultats = [];
+  cibles.forEach(function (cible) {
+    try {
+      resultats.push(migrerStatutsSeance(cible));
+    } catch (e) {
+      resultats.push({ cible: cible, erreur: String(e) });
+    }
+  });
+  Logger.log(JSON.stringify(resultats, null, 2));
+  return resultats;
 }
 
 // Migration PROD validée sur les cinq copies TEST MIGRATION le 12/09/2026.
