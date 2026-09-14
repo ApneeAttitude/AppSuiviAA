@@ -72,7 +72,8 @@ partagées avec les mêmes 24 personnes. Les migrations manuelles
 `preparerSta1Prod` et `preparerSta2Prod` sont strictement limitées à ces deux
 cibles : elles créent les listes normalisées de Zone de confort et de Statut de
 séance. La version Apps Script PROD 48 a été contrôlée par lecture API avant la
-publication des pages `STA1/` et `STA2/`.
+publication des pages `STA1/` et `STA2/` (commit `d87d178`) ; les deux URLs
+GitHub Pages ont ensuite été vérifiées.
 
 Les copies de production DNF1 et DNF2 possèdent depuis le 13/09/2026 les
 cibles distinctes `PROD-DNF1` et `PROD-DNF2`. Avant la première publication,
