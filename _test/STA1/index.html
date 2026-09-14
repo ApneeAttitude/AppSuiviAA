@@ -1,0 +1,783 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Présences — STA1 [TEST]</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Manrope:wght@400;500;600&display=swap">
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0; background: #04101c; color: #16202b;
+    font-family: 'Manrope', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  .bg-photo {
+    position: fixed; inset: 0; z-index: -2;
+    background-image: url(../../assets/fond-plongeurs.jpg);
+    background-size: cover; background-position: center;
+  }
+  header {
+    background: linear-gradient(180deg, rgba(3,12,22,0.6) 0%, rgba(3,12,22,0.32) 100%);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    color: #fff; padding: 16px 16px 14px 16px;
+    position: sticky; top: 0; z-index: 5;
+    text-shadow: 0 1px 6px rgba(0,0,0,.3);
+  }
+  header .eyebrow {
+    display: block; font-family: 'Space Grotesk', sans-serif; font-weight: 600;
+    font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase;
+    color: rgba(255,255,255,.82); margin-bottom: 2px;
+  }
+  header .titre {
+    display: block; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 21px;
+  }
+  main { padding: 14px; padding-bottom: 96px; max-width: 480px; margin: 0 auto; position: relative; z-index: 1; }
+  .card {
+    background: rgba(255,255,255,0.55);
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    border: 1px solid rgba(255,255,255,0.45);
+    box-shadow: 0 8px 24px rgba(3,12,22,0.18);
+    border-radius: 14px; padding: 14px 16px; margin-bottom: 12px;
+  }
+  select, input[type=text] {
+    width: 100%; padding: 10px; font-size: 16px;
+    background: rgba(255,255,255,0.5); color: #16202b;
+    border: 1px solid rgba(255,255,255,0.6);
+    border-radius: 8px; margin-top: 4px;
+  }
+  label { font-size: 13px; color: rgba(22,32,43,0.65); display: block; margin-top: 10px; }
+  .seance-heading {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    margin-top: 10px;
+  }
+  .seance-heading > label { margin-top: 0; }
+  .status-pill-wrap { position: relative; flex: 0 0 auto; }
+  .status-pill-wrap::after {
+    content: "⌄"; position: absolute; right: 11px; top: 50%; transform: translateY(-57%);
+    color: currentColor; font-size: 15px; font-weight: 700; pointer-events: none;
+  }
+  #statut {
+    width: auto; max-width: 145px; min-height: 36px; margin: 0;
+    padding: 7px 31px 7px 13px; border-radius: 999px;
+    font-size: 13px; font-weight: 700; line-height: 1.2;
+    appearance: none; -webkit-appearance: none; cursor: pointer;
+    transition: color .15s ease, background .15s ease, border-color .15s ease;
+  }
+  #statut.status-planifiee { color: #155e75; background: rgba(224,242,254,.88); border-color: #67b8d3; }
+  #statut.status-tenue { color: #166534; background: rgba(220,252,231,.9); border-color: #6fca8d; }
+  #statut.status-annulee { color: #991b1b; background: rgba(254,226,226,.9); border-color: #e78a8a; }
+  #statut.status-fermee { color: #475569; background: rgba(226,232,240,.9); border-color: #a8b3c2; }
+  #statut.status-indisponible { color: #5b6470; background: rgba(241,245,249,.8); border-color: #cbd5e1; }
+  #statut:focus-visible { outline: 3px solid #e3a331; outline-offset: 2px; }
+  #statut:disabled { cursor: default; opacity: .72; }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+  }
+  .encadrant-info { font-size: 13px; color: rgba(22,32,43,0.75); margin-top: 8px; min-height: 16px; }
+  .encadrant-info strong { color: #0f6e6a; }
+  .encadrant-row { display: flex; align-items: center; gap: 8px; }
+  .encadrant-row .encadrant-info { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .replacement-dialog button { min-height: 44px; padding: 8px 12px; border: 1px solid #0f6e6a; border-radius: 8px; background: #fff; color: #0f5754; font: inherit; cursor: pointer; }
+  .replacement-button {
+    display: inline-flex; align-items: center; gap: 6px;
+    min-height: 44px; padding: 6px 14px 6px 6px; flex-shrink: 0;
+    background: rgba(15,110,106,0.10); border: 1px solid rgba(15,110,106,0.25);
+    border-radius: 999px; color: #0f5754; font: inherit; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: background .15s ease, border-color .15s ease, color .15s ease;
+  }
+  .replacement-button-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
+    background: #0f6e6a; color: #fff;
+  }
+  .replacement-button:hover { background: rgba(15,110,106,0.18); }
+  .replacement-button.is-active { background: #0f6e6a; border-color: #0f6e6a; color: #fff; }
+  .replacement-button.is-active .replacement-button-icon { background: rgba(255,255,255,0.25); }
+  .replacement-note { color: #714000; font-size: 12px; margin: 6px 0 0; }
+  .replacement-dialog { box-sizing: border-box; width: min(480px, calc(100% - 28px)); max-height: 85dvh; padding: 20px; border: 0; border-radius: 18px; color: #16202b; background: #f3f8f8; overflow-y: auto; }
+  .replacement-dialog::backdrop { background: rgba(3,12,22,.65); }
+  .replacement-dialog h2 { font-size: 19px; margin: 0; }
+  .replacement-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .replacement-dialog input { box-sizing: border-box; background: white; border-color: #728e8b; }
+  .replacement-dialog p { font-size: 13px; }
+  .replacement-dialog .roster-item { gap: 12px; }
+  .replacement-dialog .roster-item-habituel { background: rgba(15,110,106,0.08); border-radius: 8px; padding-left: 8px; padding-right: 8px; border-bottom: 2px solid rgba(15,110,106,0.25); margin-bottom: 6px; }
+  .replacement-dialog .roster-item button { background: #0f6e6a; color: white; flex-shrink: 0; }
+  .replacement-dialog button:focus-visible, .replacement-button:focus-visible { outline: 3px solid #e3a331; outline-offset: 3px; }
+  .replacement-dialog .current-choice { font-size: 12px; color: #0f5754; }
+  @media (max-width: 600px) {
+    .replacement-dialog { width: 100%; max-height: 85dvh; margin: auto 0 0; border-radius: 20px 20px 0 0; padding-bottom: max(20px, env(safe-area-inset-bottom)); }
+  }
+  .accordion-toggle {
+    display: flex; align-items: center; justify-content: space-between;
+    width: 100%; margin-top: 10px; padding: 8px 10px;
+    background: rgba(15,110,106,0.10); border: 1px solid rgba(15,110,106,0.25);
+    border-radius: 8px; font-size: 13px; font-weight: 600; color: #0f3a3a;
+    cursor: pointer; text-align: left; font-family: inherit;
+  }
+  .accordion-toggle .chevron { transition: transform .15s ease; display: inline-block; }
+  .accordion-toggle[aria-expanded="true"] .chevron { transform: rotate(90deg); }
+  .accordion-content { margin-top: 6px; }
+  .plan-toolbar { display: flex; gap: 6px; margin-bottom: 6px; }
+  .plan-toolbar button {
+    padding: 6px 10px; font-size: 13px; font-family: inherit; line-height: 1;
+    background: rgba(255,255,255,0.6); color: #0f3a3a;
+    border: 1px solid rgba(15,110,106,0.3); border-radius: 6px; cursor: pointer;
+  }
+  .plan-toolbar button:hover { background: rgba(15,110,106,0.15); }
+  .plan-toolbar button:active { background: rgba(15,110,106,0.28); }
+  .plan-editor {
+    width: 100%; min-height: 110px; max-height: 75vh; padding: 10px; font-size: 14px; font-family: inherit;
+    background: rgba(255,255,255,0.5); color: #16202b;
+    border: 1px solid rgba(255,255,255,0.6); border-radius: 8px;
+    overflow-y: auto; -webkit-overflow-scrolling: touch;
+  }
+  .plan-editor:empty:before { content: attr(data-placeholder); color: rgba(22,32,43,0.45); }
+  .plan-editor ul, .plan-editor ol { margin: 4px 0; padding-left: 22px; }
+  .plan-editor a { color: #0f6e6a; }
+  .roster-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 4px; border-bottom: 1px solid rgba(22,32,43,0.1);
+  }
+  .roster-item:last-child { border-bottom: none; }
+  .roster-item button {
+    background: #0f6e6a; color: #fff; border: none; border-radius: 6px;
+    padding: 8px 12px; font-size: 14px;
+  }
+  .present-item {
+    background: rgba(255,255,255,0.55);
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    border: 1px solid rgba(255,255,255,0.45);
+    box-shadow: 0 8px 24px rgba(3,12,22,0.18);
+    border-radius: 14px; padding: 10px 14px; margin-bottom: 10px;
+  }
+  .present-item .top {
+    display: flex; justify-content: space-between; align-items: center;
+    font-weight: 600;
+  }
+  .present-item .top button {
+    background: none; border: none; color: rgba(22,32,43,0.55); font-size: 22px;
+    line-height: 1; padding: 0 2px; cursor: pointer;
+  }
+  .present-item .top button:hover { color: #a33; }
+  .present-item select, .present-item input {
+    margin-top: 6px; font-size: 14px; padding: 6px;
+  }
+  .present-item textarea.observation {
+    display: block; width: 100%; box-sizing: border-box; margin-top: 6px;
+    min-height: 38px; max-height: 72px; resize: none; overflow-y: hidden;
+    font: inherit; font-size: 14px; line-height: 1.35; padding: 6px;
+    border: 1px solid rgba(22,32,43,0.18); border-radius: 6px;
+  }
+  .present-item.invite {
+    background: rgba(255,236,206,0.6); border-color: rgba(240,180,100,0.55);
+  }
+  .badge-invite, .tag-invite {
+    display: inline-block; font-size: 11px; font-weight: 600; font-style: normal;
+    color: #7a4a12; background: rgba(247,200,120,0.85); border-radius: 4px;
+    padding: 2px 6px; margin-left: 6px; vertical-align: middle;
+  }
+  .fixed-bar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: linear-gradient(180deg, rgba(3,12,22,0) 0%, rgba(3,12,22,0.6) 55%);
+    padding: 14px 16px 22px 16px; z-index: 5;
+  }
+  .fixed-bar button {
+    width: 100%; padding: 14px; font-size: 16px; font-weight: 600;
+    background: #0f6e6a; color: #fff; border: none; border-radius: 10px;
+    box-shadow: 0 6px 18px rgba(3,12,22,0.3);
+  }
+  .fixed-bar button:disabled { background: #7a8a86; }
+  #msg { font-size: 13px; margin-top: 6px; min-height: 18px; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.4); }
+  #msg.err { color: #ffb4b4; }
+  #msg.ok { color: #bdf0d8; }
+  #signin { padding: 30px 16px; text-align: center; }
+  #signin p { color: #16202b; }
+  #app { display: none; }
+</style>
+</head>
+<body>
+
+
+<div class="bg-photo"></div>
+<header><span class="eyebrow">Suivi des présences</span><span class="titre">🧪 TEST — STA1</span></header>
+
+<main>
+  <div id="signin" class="card">
+    <p>Connexion avec votre compte Google du club.</p>
+    <div id="g_id_signin"></div>
+  </div>
+
+  <div id="app">
+    <div class="card">
+      <div class="seance-heading">
+        <label for="seance">Séance</label>
+        <div class="status-pill-wrap">
+          <label for="statut" class="sr-only">Statut de la séance</label>
+          <select id="statut" aria-label="Statut de la séance"></select>
+        </div>
+      </div>
+      <select id="seance"></select>
+      <div class="encadrant-row">
+        <div id="encadrant" class="encadrant-info" aria-live="polite"></div>
+        <button type="button" id="remplacantOuvrir" class="replacement-button" aria-haspopup="dialog"><span class="replacement-button-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h11l-3-3M17 17H6l3 3"/></svg></span><span id="remplacantOuvrirLabel">Remplacer</span></button>
+      </div>
+      <p id="remplacantNote" class="replacement-note" role="status" hidden>Modification non enregistrée</p>
+      <button type="button" id="planToggle" class="accordion-toggle" aria-expanded="false">
+        <span id="planToggleLabel">📋 Plan de séance</span><span class="chevron">›</span>
+      </button>
+      <div id="planContent" class="accordion-content" hidden>
+        <div class="plan-toolbar">
+          <button type="button" data-cmd="bold" title="Gras"><b>G</b></button>
+          <button type="button" data-cmd="italic" title="Italique"><i>I</i></button>
+          <button type="button" data-cmd="insertUnorderedList" title="Liste à puces">☰</button>
+          <button type="button" data-cmd="link" title="Insérer un lien">🔗</button>
+        </div>
+        <div id="planSeance" class="plan-editor" contenteditable="true" data-placeholder="Texte et/ou lien (facultatif)"></div>
+      </div>
+
+    </div>
+
+    <div class="card">
+      <label for="recherche">Ajouter un présent</label>
+      <input type="text" id="recherche" placeholder="Nom ou prénom…" autocomplete="off">
+      <div id="suggestions"></div>
+    </div>
+
+    <div class="card">
+      <div id="presents"></div>
+      <p id="vide" style="color:#888;font-size:14px;">Aucun présent ajouté pour l'instant.</p>
+    </div>
+  </div>
+</main>
+
+<div class="fixed-bar" id="bar" style="display:none;">
+  <button id="btnSave">Enregistrer la séance</button>
+  <div id="msg"></div>
+</div>
+
+<dialog id="remplacantDialog" class="replacement-dialog" aria-labelledby="remplacantTitre" aria-describedby="remplacantAide">
+  <div class="replacement-heading">
+    <h2 id="remplacantTitre">Choisir un remplaçant</h2>
+    <button type="button" id="remplacantFermer" aria-label="Fermer sans modifier">✕</button>
+  </div>
+  <p id="remplacantAide">Choisis un encadrant, puis utilise « Enregistrer la séance » pour sauvegarder.</p>
+  <label for="remplacantRecherche">Rechercher un encadrant</label>
+  <input id="remplacantRecherche" type="text" placeholder="Nom ou prénom…" autocomplete="off">
+  <p id="remplacantResultat" role="status"></p>
+  <div id="remplacantSuggestions"></div>
+</dialog>
+
+<script>
+// --- À renseigner après déploiement -------------------------------------
+// Script STANDALONE unique (Code.gs), un seul code source pour toutes les
+// lignes et tous les environnements. Mais un déploiement distinct par
+// palier DEV/TEST/PROD (Gérer les déploiements, dans script.google.com) :
+// chaque palier a donc SA PROPRE URL /exec, partagée seulement entre les
+// lignes de ce même palier. Le paramétrage cible -> classeur se trouve
+// dans Code.gs (objet CLASSEURS), pas ici.
+var WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwkFxW3sBuR9ccboDcp5htVmrLWiIrcfvdi2O3UYtWK7blG7cxxFHHiCPdyZeMEbeyC2A/exec";
+var GOOGLE_CLIENT_ID = "490347116418-0outack1od53036gfeca2enatbopogfm.apps.googleusercontent.com";
+var CIBLE = "TEST-STA1";
+// -------------------------------------------------------------------------
+
+var idToken = null;
+var roster = [];
+var seances = [];
+var zonesConfort = [];  // {id, libelle, actif} — cf. Code.gs lireListeZoneConfort_ (09/09/2026)
+var statutsSeance = []; // {id, libelle, actif} — même modèle que zonesConfort
+var presents = {};   // apneiste_id -> {id, nom, prenom, qualite, observation}
+var presentsOrder = [];  // ordre d'affichage : dernier ajoute en tete (demande du 06/09/2026)
+
+function handleCredentialResponse(resp) {
+  idToken = resp.credential;
+  document.getElementById('signin').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('bar').style.display = 'block';
+  chargerDonnees();
+}
+
+window.onload = function () {
+  google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    callback: handleCredentialResponse,
+    auto_select: true
+  });
+  google.accounts.id.renderButton(
+    document.getElementById('g_id_signin'),
+    { theme: 'filled_blue', size: 'large', width: 280 }
+  );
+};
+
+function chargerDonnees() {
+  fetch(WEB_APP_URL + '?action=data&cible=' + encodeURIComponent(CIBLE), { cache: 'no-store' })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (!d.ok) { afficherMessage(d.error, true); return; }
+      roster = d.roster;
+      seances = d.seances;
+      zonesConfort = d.listesZoneConfort || [];
+      statutsSeance = d.listesStatutsSeance || [];
+      remplirSeances();
+    })
+    .catch(function (e) { afficherMessage('Erreur de chargement : ' + e, true); });
+}
+
+function remplirSeances() {
+  var sel = document.getElementById('seance');
+  sel.innerHTML = '';
+  // ordre chronologique, la plus ancienne en haut (demande du 07/09/2026)
+  seances.forEach(function (s) {
+    var opt = document.createElement('option');
+    opt.value = s.id;
+    var horaire = (s.heure_debut && s.heure_fin) ? (s.heure_debut + ' - ' + s.heure_fin) : '';
+    opt.textContent = s.numero + ' . ' + s.jour + ' ' + s.date + (horaire ? ' . ' + horaire : '');
+    sel.appendChild(opt);
+  });
+  sel.onchange = ouvrirSeance;
+  if (seances.length) {
+    // selection par defaut : la seance la plus recente deja passee (ou en
+    // cours), sinon la premiere de la liste — plus pratique que "la
+    // premiere ligne" maintenant que l'ordre est chronologique croissant.
+    var todayIso = new Date().toISOString().slice(0, 10);
+    var defaut = seances[0].id;
+    seances.forEach(function (s) {
+      if (s.date_iso && s.date_iso <= todayIso) defaut = s.id;
+    });
+    sel.value = defaut;
+    ouvrirSeance();
+  }
+}
+
+// TEST-L2 : remplacement en brouillon, enregistré avec la séance uniquement.
+var remplacementId = '';
+var remplacementInitialId = '';
+function seanceCourante_() {
+  return seances.find(function (s) { return s.id === document.getElementById('seance').value; });
+}
+function appliquerStyleStatut_(select) {
+  select.classList.remove('status-planifiee', 'status-tenue', 'status-annulee',
+                          'status-fermee', 'status-indisponible');
+  var classes = {
+    '1': 'status-planifiee', '2': 'status-tenue',
+    '3': 'status-annulee', '4': 'status-fermee'
+  };
+  select.classList.add(classes[String(select.value)] || 'status-indisponible');
+}
+function afficherStatutSeance() {
+  var select = document.getElementById('statut');
+  var s = seanceCourante_();
+  var valeur = s ? String(s.statut_id || '') : '';
+  var options = statutsSeance.filter(function (x) {
+    return x.actif || String(x.id) === valeur;
+  });
+  select.innerHTML = '';
+  if (!options.length) {
+    var indisponible = document.createElement('option');
+    indisponible.textContent = s && s.statut ? s.statut : 'Statut indisponible';
+    indisponible.value = '';
+    select.appendChild(indisponible);
+    appliquerStyleStatut_(select);
+    select.disabled = true;
+    return;
+  }
+  options.forEach(function (x) {
+    var option = document.createElement('option');
+    option.value = x.id;
+    option.textContent = x.libelle;
+    select.appendChild(option);
+  });
+  select.value = valeur;
+  if (select.value === '') select.value = String(options[0].id);
+  appliquerStyleStatut_(select);
+  select.disabled = !s;
+}
+document.getElementById('statut').addEventListener('change', function () {
+  appliquerStyleStatut_(this);
+});
+function initialiserRemplacement_() {
+  var s = seanceCourante_();
+  remplacementInitialId = s && s.remplacant_actif ? String(s.responsable_id || '') : '';
+  remplacementId = remplacementInitialId;
+  afficherEncadrant();
+}
+function afficherEncadrant() {
+  var s = seanceCourante_();
+  // Si aucun remplacant n'est actif (selection courante OU initiale), on
+  // affiche l'encadrant HABITUEL du creneau (responsable_habituel_id,
+  // independant de tout remplacement en cours - cf. Code.gs), jamais
+  // s.encadrant_prenom/nom qui refletent l'identite courante uniquement.
+  var idAffiche = remplacementId || (s ? String(s.responsable_habituel_id || '') : '');
+  var p = roster.find(function (p) { return String(p.id) === idAffiche; });
+  var nom = p ? (p.prenom + ' ' + p.nom).trim() : '';
+  var el = document.getElementById('encadrant');
+  el.textContent = 'Encadrant : ';
+  var strong = document.createElement('strong');
+  strong.textContent = nom || (remplacementId ? 'Remplaçant' : 'Encadrant habituel');
+  el.appendChild(strong);
+  if (remplacementId) el.appendChild(document.createTextNode(' · remplaçant'));
+  document.getElementById('remplacantOuvrirLabel').textContent = remplacementId ? 'Modifier' : 'Remplacer';
+  document.getElementById('remplacantOuvrir').classList.toggle('is-active', !!remplacementId);
+  document.getElementById('remplacantOuvrir').disabled = !s;
+  document.getElementById('remplacantNote').hidden = remplacementId === remplacementInitialId;
+}
+function normaliserRecherche_(texte) {
+  return String(texte || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+function rechercherRemplacants_() {
+  var q = normaliserRecherche_(document.getElementById('remplacantRecherche').value);
+  var s = seanceCourante_();
+  var pHabituel = s ? roster.find(function (p) { return String(p.id) === String(s.responsable_habituel_id || ''); }) : null;
+  var nomHabituel = (pHabituel ? (pHabituel.prenom + ' ' + pHabituel.nom).trim() : '') || 'encadrant habituel';
+  var candidats = roster.filter(function (p) {
+    return (p.est_encadrant === true || normaliserRecherche_(p.role).includes('encadrant')) &&
+      (!q || normaliserRecherche_(p.nom).startsWith(q) || normaliserRecherche_(p.prenom).startsWith(q) ||
+       normaliserRecherche_(p.prenom + ' ' + p.nom).startsWith(q));
+  }).sort(function (a, b) { return (a.nom + a.prenom).localeCompare(b.nom + b.prenom, 'fr'); });
+  var box = document.getElementById('remplacantSuggestions');
+  box.replaceChildren();
+  // Ligne fixe "encadrant habituel" : toujours visible, jamais filtree par la recherche
+  // (demande de Fred du 12/09/2026 - remplace l'ancien bouton separe).
+  var rowHabituel = document.createElement('div'); rowHabituel.className = 'roster-item roster-item-habituel';
+  var labelHabituel = document.createElement('span'); labelHabituel.textContent = '↩ ' + nomHabituel + ' (habituel)';
+  var boutonHabituel = document.createElement('button'); boutonHabituel.type = 'button';
+  boutonHabituel.textContent = remplacementId === '' ? 'Sélectionné' : 'Choisir';
+  boutonHabituel.setAttribute('aria-label', 'Revenir à l’encadrant habituel, ' + nomHabituel);
+  boutonHabituel.onclick = function () { choisirRemplacant_(''); };
+  rowHabituel.append(labelHabituel, boutonHabituel); box.appendChild(rowHabituel);
+  document.getElementById('remplacantResultat').textContent = candidats.length ?
+    candidats.length + ' encadrant(s)' : 'Aucun encadrant trouvé.';
+  candidats.forEach(function (p) {
+    var row = document.createElement('div'); row.className = 'roster-item';
+    var label = document.createElement('span'); label.textContent = p.prenom + ' ' + p.nom;
+    var button = document.createElement('button'); button.type = 'button';
+    button.textContent = String(p.id) === remplacementId ? 'Sélectionné' : 'Choisir';
+    button.setAttribute('aria-label', 'Choisir ' + p.prenom + ' ' + p.nom);
+    button.onclick = function () { choisirRemplacant_(String(p.id)); };
+    row.append(label, button); box.appendChild(row);
+  });
+}
+function choisirRemplacant_(id) {
+  remplacementId = id;
+  afficherEncadrant();
+  document.getElementById('remplacantDialog').close();
+}
+document.getElementById('remplacantOuvrir').addEventListener('click', function () {
+  document.getElementById('remplacantRecherche').value = '';
+  rechercherRemplacants_();
+  document.getElementById('remplacantDialog').showModal();
+  document.getElementById('remplacantRecherche').focus();
+});
+document.getElementById('remplacantRecherche').addEventListener('input', rechercherRemplacants_);
+document.getElementById('remplacantFermer').addEventListener('click', function () { document.getElementById('remplacantDialog').close(); });
+document.getElementById('remplacantDialog').addEventListener('close', function () { document.getElementById('remplacantOuvrir').focus(); });
+
+// Plan de séance (texte ou lien) : accordéon replié par défaut à chaque
+// changement de séance (option B retenue le 07/09/2026), prérempli si déjà
+// renseigné (dans le classeur ou par un encadrant précédent), modifiable
+// ici. Enregistré avec le même bouton "Enregistrer la séance" que les
+// présences — pas de bouton séparé.
+function afficherPlanSeance() {
+  var s = seances.filter(function (x) { return x.id === document.getElementById('seance').value; })[0];
+  var toggle = document.getElementById('planToggle');
+  var content = document.getElementById('planContent');
+  var texte = document.getElementById('planSeance');
+  texte.innerHTML = sanitizerPlan_((s && s.plan) || '');
+  document.getElementById('planToggleLabel').textContent =
+    '📋 Plan de séance' + (texte.textContent.trim() ? ' ✓' : '');
+  toggle.setAttribute('aria-expanded', 'false');
+  content.hidden = true;
+}
+
+// Editeur "texte riche" minimal pour le plan de seance (08/09/2026, en test
+// sur TEST-L2/TEST-L3) : zone contenteditable + petite barre d'outils
+// (Gras/Italique/Liste/Lien) plutot qu'un textarea brut, pour pouvoir mettre
+// en forme un plan de seance un peu structure (liens vers des references,
+// listes d'exercices). document.execCommand est deprecie mais reste le
+// moyen le plus simple d'obtenir un editeur minimal sans dependance externe
+// (pas de librairie tierce sur GitHub Pages) ; a revoir si un navigateur
+// cesse de le supporter.
+var PLAN_TAGS_AUTORISES = { B: 1, STRONG: 1, I: 1, EM: 1, U: 1, UL: 1, OL: 1, LI: 1, BR: 1, DIV: 1, P: 1, SPAN: 1, A: 1 };
+
+function sanitizerPlan_(html) {
+  var tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  (function nettoyer(noeud) {
+    Array.prototype.slice.call(noeud.childNodes).forEach(function (enfant) {
+      if (enfant.nodeType === 1) {
+        if (!PLAN_TAGS_AUTORISES[enfant.tagName]) {
+          while (enfant.firstChild) noeud.insertBefore(enfant.firstChild, enfant);
+          noeud.removeChild(enfant);
+          return;
+        }
+        Array.prototype.slice.call(enfant.attributes).forEach(function (attr) {
+          if (enfant.tagName === 'A' && attr.name === 'href' && /^https?:\/\//i.test(attr.value)) return;
+          enfant.removeAttribute(attr.name);
+        });
+        if (enfant.tagName === 'A') {
+          enfant.setAttribute('target', '_blank');
+          enfant.setAttribute('rel', 'noopener noreferrer');
+        }
+        nettoyer(enfant);
+      } else if (enfant.nodeType !== 3) {
+        noeud.removeChild(enfant);
+      }
+    });
+  })(tmp);
+  return tmp.innerHTML;
+}
+
+document.querySelectorAll('.plan-toolbar button').forEach(function (btn) {
+  // mousedown + preventDefault : on garde la selection/le focus dans
+  // l'editeur, sinon le clic sur le bouton la ferait perdre avant que
+  // execCommand ne s'applique.
+  btn.addEventListener('mousedown', function (e) { e.preventDefault(); });
+  btn.addEventListener('click', function () {
+    var editeur = document.getElementById('planSeance');
+    editeur.focus();
+    var cmd = btn.dataset.cmd;
+    if (cmd === 'link') {
+      var url = window.prompt('Adresse du lien (https://…)');
+      if (!url) return;
+      if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+      var sel = window.getSelection();
+      if (!sel || sel.isCollapsed) {
+        var titre = window.prompt('Texte du lien à afficher (facultatif)', url);
+        if (titre === null) return;
+        if (!titre.trim()) titre = url;
+        document.execCommand('insertHTML', false,
+          '<a href="' + url.replace(/"/g, '&quot;') + '" target="_blank" rel="noopener noreferrer">' +
+          titre.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</a>');
+      } else {
+        document.execCommand('createLink', false, url);
+      }
+    } else {
+      document.execCommand(cmd, false, null);
+    }
+  });
+});
+
+function ouvrirSeance() {
+  presents = {};
+  presentsOrder = [];
+  render();
+  afficherStatutSeance();
+  initialiserRemplacement_();
+  afficherPlanSeance();
+  var seanceId = document.getElementById('seance').value;
+  fetch(WEB_APP_URL + '?action=fiche&cible=' + encodeURIComponent(CIBLE) +
+        '&seance=' + encodeURIComponent(seanceId), { cache: 'no-store' })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (!d.ok) { afficherMessage(d.error, true); return; }
+      d.presences.forEach(function (p) {
+        // la fiche renvoyee par le serveur n'indique pas si la personne est
+        // membre de la ligne : on le retrouve via le roster deja charge
+        // (demande "invite" du 07/09/2026).
+        var ref = roster.filter(function (r) { return r.id === p.apneiste_id; })[0];
+        p.membre = ref ? ref.membre !== false : true;
+        presents[p.apneiste_id] = p;
+        presentsOrder.push(String(p.apneiste_id));
+      });
+      render();
+    });
+}
+
+// Hauteur automatique du plan de seance (08/09/2026, suite au retour de
+// Fred : 75vh fixe etait trop grand) : la zone grandit avec le contenu
+// (comme un textarea auto-resize) jusqu'a 75vh (voir .plan-editor
+// max-height ci-dessus), au-dela de quoi elle defile en interne plutot
+// que de continuer a grandir.
+function redimensionnerPlan_() {
+  var editeur = document.getElementById('planSeance');
+  editeur.style.height = 'auto';
+  editeur.style.height = editeur.scrollHeight + 'px';
+}
+document.getElementById('planSeance').addEventListener('input', redimensionnerPlan_);
+
+document.getElementById('planToggle').addEventListener('click', function () {
+  var content = document.getElementById('planContent');
+  var expanded = this.getAttribute('aria-expanded') === 'true';
+  this.setAttribute('aria-expanded', String(!expanded));
+  content.hidden = expanded;
+  // recalcule seulement a l'ouverture : replie, l'editeur a un scrollHeight
+  // non fiable (contenu masque).
+  if (!content.hidden) redimensionnerPlan_();
+});
+
+document.getElementById('recherche').addEventListener('input', function (e) {
+  var q = e.target.value.trim().toLowerCase();
+  var box = document.getElementById('suggestions');
+  box.innerHTML = '';
+  if (!q) return;
+  var matches = roster.filter(function (p) {
+    return !presents[p.id] &&
+      (p.nom.toLowerCase().indexOf(q) === 0 || p.prenom.toLowerCase().indexOf(q) === 0);
+  }).slice(0, 8);
+  matches.forEach(function (p) {
+    var div = document.createElement('div');
+    div.className = 'roster-item';
+    div.innerHTML = '<span>' + p.prenom + ' ' + p.nom +
+      (p.membre === false ? ' <em class="tag-invite">invite</em>' : '') + '</span>';
+    var btn = document.createElement('button');
+    btn.textContent = 'Ajouter';
+    btn.onclick = function () {
+      presents[p.id] = { apneiste_id: p.id, nom: p.nom, prenom: p.prenom,
+                         membre: p.membre !== false, qualite: '', observation: '' };
+      presentsOrder.unshift(String(p.id));   // ajout en tete de liste (demande du 06/09/2026)
+      document.getElementById('recherche').value = '';
+      box.innerHTML = '';
+      render();
+    };
+    div.appendChild(btn);
+    box.appendChild(div);
+  });
+});
+
+// Construit les <option> du menu deroulant "Zone de confort" a partir de
+// zonesConfort (chargee depuis l'API, cf. chargerDonnees) plutot que d'une
+// liste codee en dur : changer un libelle cote Sheet se repercute ici sans
+// retouche de ce fichier (09/09/2026, TEST-L2 uniquement pour l'instant).
+// Seules les valeurs actives sont proposees pour une nouvelle saisie, mais
+// une valeur deja selectionnee (meme retiree depuis) reste visible.
+function construireOptionsZoneConfort_(valeurActuelle) {
+  var html = '<option value="">Zone de confort (facultatif)</option>';
+  zonesConfort.forEach(function (z) {
+    var estActuelle = valeurActuelle !== '' && valeurActuelle !== undefined && valeurActuelle !== null &&
+                       Number(z.id) === Number(valeurActuelle);
+    if (!z.actif && !estActuelle) return;
+    html += '<option value="' + z.id + '"' + (estActuelle ? ' selected' : '') + '>' +
+            String(z.libelle).replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</option>';
+  });
+  return html;
+}
+
+// Redimensionne une observation jusqu'à trois lignes. Au-delà, la zone reste
+// compacte et défile verticalement pour éviter que la carte ne prenne toute
+// la hauteur de l'écran.
+function ajusterObservation_(textarea) {
+  textarea.style.height = 'auto';
+  var style = window.getComputedStyle(textarea);
+  var lineHeight = parseFloat(style.lineHeight) || 19;
+  var padding = (parseFloat(style.paddingTop) || 0) + (parseFloat(style.paddingBottom) || 0);
+  var hauteurMax = Math.ceil(lineHeight * 3 + padding + 2);
+  var hauteur = Math.max(textarea.scrollHeight, parseFloat(style.minHeight) || 0);
+  textarea.style.maxHeight = hauteurMax + 'px';
+  textarea.style.height = Math.min(hauteur, hauteurMax) + 'px';
+  textarea.style.overflowY = hauteur > hauteurMax ? 'auto' : 'hidden';
+}
+
+function render() {
+  var wrap = document.getElementById('presents');
+  var vide = document.getElementById('vide');
+  wrap.innerHTML = '';
+  var ids = presentsOrder;
+  vide.style.display = ids.length ? 'none' : 'block';
+  ids.forEach(function (id) {
+    var p = presents[id];
+    var estInvite = p.membre === false;
+    var div = document.createElement('div');
+    div.className = 'present-item' + (estInvite ? ' invite' : '');
+    div.innerHTML =
+      '<div class="top"><span>' + p.prenom + ' ' + p.nom +
+      (estInvite ? ' <span class="badge-invite">invité</span>' : '') + '</span>' +
+      '<button data-id="' + id + '" class="retirer" aria-label="Retirer">&times;</button></div>' +
+      '<select data-id="' + id + '" class="qualite">' +
+        construireOptionsZoneConfort_(p.qualite) +
+      '</select>' +
+      '<textarea data-id="' + id + '" class="observation" rows="1" placeholder="Observation (facultatif)"></textarea>';
+    wrap.appendChild(div);
+    var observation = div.querySelector('.observation');
+    observation.value = p.observation || '';
+    ajusterObservation_(observation);
+  });
+  wrap.querySelectorAll('.retirer').forEach(function (b) {
+    b.onclick = function () {
+      delete presents[b.dataset.id];
+      presentsOrder = presentsOrder.filter(function (x) { return x !== b.dataset.id; });
+      render();
+    };
+  });
+  wrap.querySelectorAll('.qualite').forEach(function (s) {
+    s.onchange = function () { presents[s.dataset.id].qualite = s.value === '' ? '' : Number(s.value); };
+  });
+  wrap.querySelectorAll('.observation').forEach(function (i) {
+    i.oninput = function () {
+      presents[i.dataset.id].observation = i.value;
+      ajusterObservation_(i);
+    };
+  });
+}
+
+document.getElementById('btnSave').addEventListener('click', function () {
+  var btn = this;
+  btn.disabled = true;
+  document.getElementById('seance').disabled = true;
+  document.getElementById('statut').disabled = true;
+  document.getElementById('remplacantOuvrir').disabled = true;
+  afficherMessage('Enregistrement…', false);
+  var payload = {
+    action: 'saveSeance',
+    cible: CIBLE,
+    idToken: idToken,
+    seance_id: document.getElementById('seance').value,
+    statut_id: document.getElementById('statut').value === '' ? null : Number(document.getElementById('statut').value),
+    plan_seance: sanitizerPlan_(document.getElementById('planSeance').innerHTML),
+    remplacant_id: remplacementId === remplacementInitialId ? null : remplacementId,
+    presences: presentsOrder.map(function (id) {
+      var p = presents[id];
+      return { apneiste_id: id, present: true, qualite: p.qualite, observation: p.observation };
+    })
+  };
+  fetch(WEB_APP_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },  // evite le preflight CORS
+    body: JSON.stringify(payload)
+  })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      btn.disabled = false;
+      document.getElementById('seance').disabled = false;
+      document.getElementById('statut').disabled = false;
+      document.getElementById('remplacantOuvrir').disabled = false;
+      if (!d.ok) { afficherMessage(d.error, true); return; }
+      var s = seanceCourante_();
+      var nomAffiche = document.querySelector('#encadrant strong').textContent;
+      s.remplacant_actif = !!remplacementId;
+      s.responsable_id = remplacementId;
+      s.encadrant_prenom = '';
+      s.encadrant_nom = nomAffiche;
+      remplacementInitialId = remplacementId;
+      afficherEncadrant();
+      afficherMessage(d.saved + ' présence(s) enregistrée(s).' +
+        (d.statut_force_tenue ? ' Statut passé automatiquement à « tenue ».' : ''), false);
+      // Recharge le nom habituel résolu par le serveur après un retour au titulaire.
+      fetch(WEB_APP_URL + '?action=data&cible=' + encodeURIComponent(CIBLE), { cache: 'no-store' })
+        .then(function (r) { return r.json(); }).then(function (data) {
+          if (!data.ok) return;
+          seances = data.seances;
+          statutsSeance = data.listesStatutsSeance || [];
+          afficherStatutSeance();
+          if (document.getElementById('seance').value === payload.seance_id && remplacementId === remplacementInitialId) initialiserRemplacement_();
+        }).catch(function () { /* La sauvegarde a réussi ; le nom sera relu à la prochaine ouverture. */ });
+    })
+    .catch(function (e) {
+      btn.disabled = false;
+      document.getElementById('seance').disabled = false;
+      document.getElementById('statut').disabled = false;
+      document.getElementById('remplacantOuvrir').disabled = false;
+      afficherMessage('Échec de l\'enregistrement : ' + e, true);
+    });
+});
+
+function afficherMessage(txt, isErr) {
+  var m = document.getElementById('msg');
+  m.textContent = txt;
+  m.className = isErr ? 'err' : 'ok';
+}
+</script>
+</body>
+</html>

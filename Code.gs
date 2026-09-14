@@ -30,6 +30,8 @@ var CLASSEURS = {
   'TEST-L3':  'REMPLACER_PAR_ID_CLASSEUR_TEST_L3',
   'TEST-DNF1': '1T9l-Vmy6v0-GtRuOjrq8aZAVXsC6474FL0RxhnaZgdI',
   'TEST-DNF2': '1E3OoYTEWQ07Ykmbydwkf08Hns1e1YVR1ofOThezeZ94',
+  'TEST-STA1': '1QGzitEk7jM7undte_y_EmaQYhsK_faKcFHTyni9folo',
+  'TEST-STA2': '1PwMAxWjeOEE8Qpe0DRNLrVwv-KqmHZMlsTqFKloqBPg',
   'PROD-DNF1': '1kc_G0xQx2SjPIHWUdGB_tt_HKN4cZQUWsFMAPttX21g',
   'PROD-DNF2': '1X8E-TMjNh2nvH71MLeJ2DJrzwUvun0eNsD0lTMtqa_c',
   'PROD-L1':  '1K2h_E7NaJwGuGiAZn_qqhoMHZGxbW39v-j1_j8x9Pf8',
@@ -1194,12 +1196,12 @@ function migrerSaisieZoneConfortTestL2() {
   return migrerSaisieZoneConfortParLibelle('TEST-L2');
 }
 
-// Migration des modèles DNF fraîchement générés vers le même principe que
+// Migration des modèles DNF/STA fraîchement générés vers le même principe que
 // TEST-L2 : le libellé reste lisible dans Presences, l'ID stable est calculé
 // dans la colonne voisine. Limité explicitement aux deux classeurs de TEST.
-function migrerZoneConfortDnfTest_(cible) {
-  if (['TEST-DNF1', 'TEST-DNF2'].indexOf(cible) === -1) {
-    throw new Error('migration Zone de confort autorisée uniquement pour TEST-DNF1 et TEST-DNF2');
+function migrerZoneConfortLignesTest_(cible) {
+  if (['TEST-DNF1', 'TEST-DNF2', 'TEST-STA1', 'TEST-STA2'].indexOf(cible) === -1) {
+    throw new Error('migration Zone de confort autorisée uniquement pour les lignes DNF/STA de TEST');
   }
   var ss = ouvrirClasseur_(cible);
   var shP = ss.getSheetByName(SHEET_PRESENCES);
@@ -1246,13 +1248,32 @@ function migrerZoneConfortDnfTest_(cible) {
 // Prépare exclusivement les deux lignes DNF de TEST. À lancer une fois après
 // leur création ; les fonctions sont idempotentes en cas de second passage.
 function preparerDnfTest_(cible) {
-  return { cible: cible, zoneConfort: migrerZoneConfortDnfTest_(cible), statuts: migrerStatutsSeance(cible) };
+  return { cible: cible, zoneConfort: migrerZoneConfortLignesTest_(cible), statuts: migrerStatutsSeance(cible) };
 }
 
 function preparerDnf1Test() { return preparerDnfTest_('TEST-DNF1'); }
 function preparerDnf2Test() { return preparerDnfTest_('TEST-DNF2'); }
 function preparerDnfTests() {
   return [preparerDnf1Test(), preparerDnf2Test()];
+}
+
+// Prépare exclusivement les deux lignes STA de TEST. Les contrôles de nom
+// empêchent d'appliquer cette préparation à un classeur DNF ou de production.
+function preparerStaTest_(cible) {
+  if (['TEST-STA1', 'TEST-STA2'].indexOf(cible) === -1) {
+    throw new Error('préparation STA TEST autorisée uniquement pour TEST-STA1 et TEST-STA2');
+  }
+  var ss = ouvrirClasseur_(cible);
+  if (ss.getName().indexOf('AA - Suivi STA') !== 0 || ss.getName().indexOf('TEST') !== -1) {
+    throw new Error('le classeur STA de TEST attendu est introuvable : ' + ss.getName());
+  }
+  return { cible: cible, zoneConfort: migrerZoneConfortLignesTest_(cible), statuts: migrerStatutsSeance(cible) };
+}
+
+function preparerSta1Test() { return preparerStaTest_('TEST-STA1'); }
+function preparerSta2Test() { return preparerStaTest_('TEST-STA2'); }
+function preparerStaTests() {
+  return [preparerSta1Test(), preparerSta2Test()];
 }
 
 // Même migration pour les deux copies DNF de production. La liste fermée

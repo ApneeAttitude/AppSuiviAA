@@ -43,6 +43,26 @@ Sheet et à une page sous `_test/DNF1/` ou `_test/DNF2/`. Elles utilisent
 le déploiement Apps Script TEST ; elles ne doivent jamais pointer vers une
 cible `PROD-*`. Avant leur première utilisation, lancer une fois `preparerDnf1Test` puis `preparerDnf2Test` dans l’éditeur Apps Script : ces migrations créent les tables ID/libellé de Zone de confort et Statut de séance sans modifier les autres lignes.
 
+Depuis le 14/09/2026, une affectation de `Creneaux_Affectations` peut porter
+une **Périodicité (jours)**. Une cellule vide signifie une séance chaque
+semaine ; la valeur `14` génère une séance sur deux, ancrée sur la date
+d’effet. Les co-encadrants d’une même affectation n’ajoutent pas de séance
+supplémentaire. Cette règle est utilisée par `sync_referentiel.py` uniquement
+lors de l’initialisation d’un calendrier encore vide. Les copies Google Sheets
+TEST ont été créées le 14/09/2026 : STA1
+(`1QGzitEk7jM7undte_y_EmaQYhsK_faKcFHTyni9folo`) et STA2
+(`1PwMAxWjeOEE8Qpe0DRNLrVwv-KqmHZMlsTqFKloqBPg`). Leurs calendriers ont été
+contrôlés avant toute configuration Apps Script. Le même jour, les cibles isolées
+`TEST-STA1` et `TEST-STA2` ont été ajoutées dans `CLASSEURS`, puis les migrations
+manuelles `preparerSta1Test` et `preparerSta2Test` ont été exécutées. Elles ne
+peuvent agir que sur ces deux cibles TEST et créent les listes normalisées de
+Zone de confort et Statut de séance. Le déploiement Apps Script TEST a ensuite
+été mis à jour en **version 47** ; le déploiement PROD reste en version 46.
+Les appels de lecture confirment STA1 (François Memheld, 18/09/2026) et STA2
+(Guillaume Boulant, 25/09/2026), avec les listes normalisées attendues. Les pages `_test/STA1/` et `_test/STA2/` sont créées et reliées au
+déploiement TEST. Leur validation fonctionnelle reste requise avant toute
+publication en production.
+
 
 Les copies de production DNF1 et DNF2 possèdent depuis le 13/09/2026 les
 cibles distinctes `PROD-DNF1` et `PROD-DNF2`. Avant la première publication,
