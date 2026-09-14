@@ -65,6 +65,15 @@ confirmée le 15/09/2026. Toute préparation puis publication en production
 doit rester une opération séparée et explicitement validée.
 
 
+Les copies de production STA1 et STA2 possèdent depuis le 15/09/2026 les
+cibles distinctes `PROD-STA1` et `PROD-STA2`. Elles sont des copies natives
+séparées des classeurs TEST, placées dans leurs dossiers Drive respectifs et
+partagées avec les mêmes 24 personnes. Les migrations manuelles
+`preparerSta1Prod` et `preparerSta2Prod` sont strictement limitées à ces deux
+cibles : elles créent les listes normalisées de Zone de confort et de Statut de
+séance. La version Apps Script PROD 48 a été contrôlée par lecture API avant la
+publication des pages `STA1/` et `STA2/`.
+
 Les copies de production DNF1 et DNF2 possèdent depuis le 13/09/2026 les
 cibles distinctes `PROD-DNF1` et `PROD-DNF2`. Avant la première publication,
 lancer une fois `preparerDnf1Prod`, puis `preparerDnf2Prod` : ces fonctions

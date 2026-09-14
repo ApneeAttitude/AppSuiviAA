@@ -34,6 +34,8 @@ var CLASSEURS = {
   'TEST-STA2': '1PwMAxWjeOEE8Qpe0DRNLrVwv-KqmHZMlsTqFKloqBPg',
   'PROD-DNF1': '1kc_G0xQx2SjPIHWUdGB_tt_HKN4cZQUWsFMAPttX21g',
   'PROD-DNF2': '1X8E-TMjNh2nvH71MLeJ2DJrzwUvun0eNsD0lTMtqa_c',
+  'PROD-STA1': '1J5rI7VnXsQ2ixXgjEvzamtFdys2NrwjcUAgWxzInA3c',
+  'PROD-STA2': '1TE7hiZEJPuvTOF6BVct-1Jp0opxpbqIL3kwp9aSqGXo',
   'PROD-L1':  '1K2h_E7NaJwGuGiAZn_qqhoMHZGxbW39v-j1_j8x9Pf8',
   'PROD-L2':  '1ANbbV-lc9GZeVHQH8X4mFOaMKo4s8wB5TrnmX96WEko',
   'PROD-L3':  '1gVjJxXIXzvfJUObElSu8D3dnFRHTNcCWemQH-JwDsRY',
@@ -1276,11 +1278,11 @@ function preparerStaTests() {
   return [preparerSta1Test(), preparerSta2Test()];
 }
 
-// Même migration pour les deux copies DNF de production. La liste fermée
-// empêche toute écriture sur les autres classeurs de production.
-function migrerZoneConfortDnfProd_(cible) {
-  if (['PROD-DNF1', 'PROD-DNF2'].indexOf(cible) === -1) {
-    throw new Error('migration Zone de confort autorisée uniquement pour PROD-DNF1 et PROD-DNF2');
+// Migration des copies DNF/STA de production. La liste fermée empêche toute
+// écriture sur les autres classeurs de production.
+function migrerZoneConfortLignesProd_(cible) {
+  if (['PROD-DNF1', 'PROD-DNF2', 'PROD-STA1', 'PROD-STA2'].indexOf(cible) === -1) {
+    throw new Error('migration Zone de confort autorisée uniquement pour les lignes DNF/STA de PROD');
   }
   var ss = ouvrirClasseur_(cible);
   var shP = ss.getSheetByName(SHEET_PRESENCES);
@@ -1338,13 +1340,36 @@ function preparerDnfProd_(cible) {
   }
   return {
     cible: cible,
-    zoneConfort: migrerZoneConfortDnfProd_(cible),
+    zoneConfort: migrerZoneConfortLignesProd_(cible),
     statuts: migrerStatutsSeance(cible)
   };
 }
 
 function preparerDnf1Prod() { return preparerDnfProd_('PROD-DNF1'); }
 function preparerDnf2Prod() { return preparerDnfProd_('PROD-DNF2'); }
+
+// Prépare exclusivement les deux copies STA de PROD. La liste fermée et le
+// contrôle de nom évitent toute migration sur une ligne de TEST ou DNF.
+function preparerStaProd_(cible) {
+  if (['PROD-STA1', 'PROD-STA2'].indexOf(cible) === -1) {
+    throw new Error('préparation STA PROD autorisée uniquement pour PROD-STA1 et PROD-STA2');
+  }
+  var ss = ouvrirClasseur_(cible);
+  if (ss.getName().indexOf('AA - Suivi STA') !== 0 || ss.getName().indexOf('TEST') !== -1) {
+    throw new Error('nom de classeur STA PROD inattendu : ' + ss.getName());
+  }
+  return {
+    cible: cible,
+    zoneConfort: migrerZoneConfortLignesProd_(cible),
+    statuts: migrerStatutsSeance(cible)
+  };
+}
+
+function preparerSta1Prod() { return preparerStaProd_('PROD-STA1'); }
+function preparerSta2Prod() { return preparerStaProd_('PROD-STA2'); }
+function preparerStaProds() {
+  return [preparerSta1Prod(), preparerSta2Prod()];
+}
 
 // Migration des statuts de séance pour un classeur ciblé. Elle conserve la
 // colonne I "Statut" telle qu'elle est aujourd'hui : celle-ci reste lisible
