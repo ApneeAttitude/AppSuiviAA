@@ -59,9 +59,9 @@ peuvent agir que sur ces deux cibles TEST et créent les listes normalisées de
 Zone de confort et Statut de séance. Le déploiement Apps Script TEST a ensuite
 été mis à jour en **version 47** ; le déploiement PROD reste en version 46.
 Les appels de lecture confirment STA1 (François Memheld, 18/09/2026) et STA2
-(Guillaume Boulant, 25/09/2026), avec les listes normalisées attendues. Les pages `_test/STA1/` et `_test/STA2/` sont créées et reliées au
-déploiement TEST. Leur validation fonctionnelle reste requise avant toute
-publication en production.
+(Guillaume Boulant, 25/09/2026), avec les listes normalisées attendues. Les pages `_test/STA1/` et `_test/STA2/` sont publiées et reliées au
+déploiement TEST (commit `c8cdda5`). Leur validation fonctionnelle reste requise
+avant toute publication en production.
 
 
 Les copies de production DNF1 et DNF2 possèdent depuis le 13/09/2026 les
