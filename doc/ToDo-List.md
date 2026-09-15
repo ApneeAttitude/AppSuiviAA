@@ -95,7 +95,7 @@ Idées de fonctionnalités futures, classées par priorité (P1 = prioritaire, P
 - [x] **P2** — Remplacer le champ d'observation sur une ligne par une zone de texte auto-redimensionnée : hauteur initiale compacte, agrandissement automatique jusqu'à **3 lignes maximum**, puis défilement interne au-delà. Implémenté et publié en TEST-L2, validé par Fred, puis déployé en PROD sur L1/L2/L3/L4/LC (12/09/2026, commit `9aae99d`). Le contenu existant est redimensionné au chargement et le comportement reste adapté au mobile. Le guide PDF a été actualisé avec cette saisie et le bouton de remplacement.
 - [ ] **P3** — Interface dédiée aux apnéistes (et non plus seulement aux encadrants) pour qu'ils renseignent eux-mêmes leur ressenti de séance et leur forme du jour. Développement distinct de l'existant car public différent (apnéistes plutôt qu'encadrants), mais qui permettrait aussi, potentiellement, de corréler les avis encadrants et les avis apnéistes.
 - [x] **P2** — Vérifier les participants rattachés à la ligne 4 : préparer et envoyer un message WhatsApp aux encadrants de L4 afin de confirmer la composition actuelle du groupe, puis mettre à jour le paramétrage si nécessaire.
-- [x] **P2** — Publier le guide d'utilisation AppSuiviAA dans le groupe WhatsApp du club. Le PDF a été mis à jour le 13/09/2026 avec les liens de production DNF1 et DNF2.
+- [x] **P2** — Publier le guide d'utilisation AppSuiviAA dans le groupe WhatsApp du club. Le PDF a été mis à jour le 15/09/2026 avec les liens de production DNF1, DNF2, STA1 et STA2.
 
 ## Refonte du module Suivi — cahier des charges v2
 
