@@ -408,6 +408,11 @@ function afficherStatistiques_(stats) {
     carte.appendChild(nombre); carte.appendChild(libelle); synthese.appendChild(carte);
   });
   contenu.appendChild(synthese);
+  [['Évolution mensuelle', stats.mensuel], ['Moyenne par jour', stats.hebdomadaire]].forEach(function (section) {
+    var bloc = document.createElement('section'); bloc.className = 'stats-section';
+    var titre = document.createElement('h3'); titre.textContent = section[0]; bloc.appendChild(titre);
+    ajouterBarresStats_(bloc, section[1]); contenu.appendChild(bloc);
+  });
   var aCompleter = stats.seances_a_completer || [];
   var blocACompleter = document.createElement('section'); blocACompleter.className = 'stats-section';
   var titreACompleter = document.createElement('h3'); titreACompleter.textContent = 'Séances à renseigner'; blocACompleter.appendChild(titreACompleter);
@@ -423,11 +428,6 @@ function afficherStatistiques_(stats) {
     blocACompleter.appendChild(listeACompleter);
   }
   contenu.appendChild(blocACompleter);
-  [['Évolution mensuelle', stats.mensuel], ['Moyenne par jour', stats.hebdomadaire]].forEach(function (section) {
-    var bloc = document.createElement('section'); bloc.className = 'stats-section';
-    var titre = document.createElement('h3'); titre.textContent = section[0]; bloc.appendChild(titre);
-    ajouterBarresStats_(bloc, section[1]); contenu.appendChild(bloc);
-  });
 }
 document.getElementById('statsOpen').addEventListener('click', ouvrirStatistiques_);
 document.getElementById('statsFermer').addEventListener('click', function () { document.getElementById('statsDialog').close(); });
