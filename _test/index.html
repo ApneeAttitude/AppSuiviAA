@@ -241,13 +241,39 @@
   .stats-todo li:last-child { border-bottom: 0; }
   .stats-todo strong { color: #075985; }
   @media (max-width: 600px) { .stats-dialog { width: 100%; max-height: 85dvh; margin: auto 0 0; border-radius: 20px 20px 0 0; padding-bottom: max(20px, env(safe-area-inset-bottom)); } .stats-summary { gap: 7px; } .stats-kpi { padding: 10px 8px; } .stats-kpi strong { font-size: 17px; } .stats-kpi span { font-size: 11px; } }
+
+  /* Page unique : thème « Océan profond », retenu le 19/09/2026. Les
+     anciennes pages de ligne gardent leur apparence tant qu'elles ne sont
+     pas remplacées par cette URL unique. */
+  body { background: #edf5f8; color: #142d42; }
+  .bg-photo { display: none; }
+  header { background: linear-gradient(135deg, #082f49, #0b6e99); padding: 18px max(18px, calc((100% - 480px) / 2)); text-shadow: none; }
+  header .eyebrow { color: rgba(255,255,255,.78); }
+  .menu-open { background: rgba(255,255,255,.15); }
+  main { padding: 18px 14px 112px; }
+  .card, .present-item { background: #fff; border-color: #d4e2e9; box-shadow: 0 8px 22px rgba(8,47,73,.09); }
+  .card { padding: 15px; }
+  label, .encadrant-info { color: #536c7c; }
+  select, input[type=text], .plan-editor, .present-item textarea.observation { background: #fff; border-color: #c7d9e3; color: #142d42; }
+  .seance-heading { margin-top: 0; }
+  .stats-open { color: #fff; border: 0; background: #0b6e99; box-shadow: 0 6px 16px rgba(8,47,73,.16); backdrop-filter: none; }
+  .replacement-button { color: #075985; background: #e3f3f9; border-color: #b8ddea; }
+  .accordion-toggle { color: #075985; background: #e8f4f8; border-color: #b9dce7; }
+  .plan-toolbar button { background: #f5fafc; color: #075985; border-color: #b9dce7; }
+  .present-item.invite { background: #fff8ec; border-color: #ead5aa; }
+  .fixed-bar { background: linear-gradient(180deg, rgba(237,245,248,0) 0%, rgba(237,245,248,.95) 35%, #edf5f8 100%); padding: 20px 16px max(18px, env(safe-area-inset-bottom)); }
+  .fixed-bar button { background: #0b6e99; box-shadow: 0 6px 16px rgba(8,47,73,.15); }
+  #msg { color: #075985; text-shadow: none; }
+  #msg.err { color: #b42318; }
+  .menu-line:disabled { color: #718694; cursor: default; }
+  .menu-line:disabled small { color: #8398a5; }
 </style>
 </head>
 <body>
 
 
 <div class="bg-photo"></div>
-<header><span class="eyebrow">Suivi des présences</span><div class="header-row"><span id="titreLigne" class="titre">🧪 TEST — L2</span><button type="button" id="menuOuvrir" class="menu-open" aria-haspopup="dialog" aria-label="Ouvrir le menu">☰</button></div></header>
+<header><span class="eyebrow">Suivi des présences · TEST</span><div class="header-row"><span id="titreLigne" class="titre">L2 · Intermédiaire</span><button type="button" id="menuOuvrir" class="menu-open" aria-haspopup="dialog" aria-label="Ouvrir le menu">☰</button></div></header>
 
 <main>
   <div id="signin" class="card">
@@ -256,7 +282,6 @@
   </div>
 
   <div id="app">
-    <button type="button" id="statsOpen" class="stats-open">📊 Statistiques de fréquentation <span aria-hidden="true">›</span></button>
     <div class="card">
       <div class="seance-heading">
         <label for="seance">Séance</label>
@@ -348,11 +373,16 @@ var WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwkFxW3sBuR9ccboDcp5h
 var GOOGLE_CLIENT_ID = "490347116418-0outack1od53036gfeca2enatbopogfm.apps.googleusercontent.com";
 var CIBLE = "TEST-L2";
 var LIGNES_TEST = {
-  'L2': { cible: 'TEST-L2', libelle: 'Intermédiaire' },
-  'DNF1': { cible: 'TEST-DNF1', libelle: 'Apnée dynamique sans palme' },
-  'DNF2': { cible: 'TEST-DNF2', libelle: 'Apnée dynamique sans palme' },
-  'STA1': { cible: 'TEST-STA1', libelle: 'Apnée statique' },
-  'STA2': { cible: 'TEST-STA2', libelle: 'Apnée statique' }
+  'L1':   { libelle: 'Débutants', disponible: false },
+  'L2':   { cible: 'TEST-L2', libelle: 'Intermédiaire', disponible: true },
+  'L3':   { libelle: 'Confirmés', disponible: false },
+  'L4':   { libelle: 'Avancés', disponible: false },
+  'LC':   { libelle: 'Ligne compétition', disponible: false },
+  'DNF1': { cible: 'TEST-DNF1', libelle: 'Apnée dynamique sans palme', disponible: true },
+  'DNF2': { cible: 'TEST-DNF2', libelle: 'Apnée dynamique sans palme', disponible: true },
+  'STA1': { cible: 'TEST-STA1', libelle: 'Apnée statique', disponible: true },
+  'STA2': { cible: 'TEST-STA2', libelle: 'Apnée statique', disponible: true },
+  'STAC':  { libelle: 'Apnée statique compétition', disponible: false }
 };
 var ligneCourante = 'L2';
 // -------------------------------------------------------------------------
@@ -387,9 +417,9 @@ window.onload = function () {
 
 function ligneDepuisUrl_() {
   var code = new URLSearchParams(window.location.search).get('ligne');
-  return code && LIGNES_TEST[code.toUpperCase()] ? code.toUpperCase() : 'L2';
+  return code && LIGNES_TEST[code.toUpperCase()] && LIGNES_TEST[code.toUpperCase()].disponible ? code.toUpperCase() : 'L2';
 }
-function titreLigne_() { return '🧪 TEST — ' + ligneCourante; }
+function titreLigne_() { return ligneCourante + ' · ' + LIGNES_TEST[ligneCourante].libelle; }
 function renderMenuLignes_() {
   var wrap = document.getElementById('menuLignes');
   wrap.textContent = '';
@@ -397,13 +427,15 @@ function renderMenuLignes_() {
     var ligne = LIGNES_TEST[code];
     var button = document.createElement('button');
     button.type = 'button'; button.className = 'menu-line' + (code === ligneCourante ? ' is-current' : '');
+    button.disabled = !ligne.disponible;
     button.textContent = code;
-    var info = document.createElement('small'); info.textContent = ligne.libelle; button.appendChild(info);
-    button.onclick = function () { appliquerLigne_(code); document.getElementById('menuDialog').close(); };
+    var info = document.createElement('small'); info.textContent = ligne.disponible ? ligne.libelle : 'Classeur TEST à créer'; button.appendChild(info);
+    if (ligne.disponible) button.onclick = function () { appliquerLigne_(code); document.getElementById('menuDialog').close(); };
     wrap.appendChild(button);
   });
 }
 function appliquerLigne_(code) {
+  if (!LIGNES_TEST[code] || !LIGNES_TEST[code].disponible) return;
   ligneCourante = code;
   CIBLE = LIGNES_TEST[code].cible;
   document.getElementById('titreLigne').textContent = titreLigne_();
@@ -499,7 +531,6 @@ document.getElementById('menuOuvrir').addEventListener('click', function () { re
 document.getElementById('menuFermer').addEventListener('click', function () { document.getElementById('menuDialog').close(); });
 document.getElementById('menuDialog').addEventListener('close', function () { document.getElementById('menuOuvrir').focus(); });
 document.getElementById('menuStatsLigne').addEventListener('click', function () { document.getElementById('menuDialog').close(); ouvrirStatistiques_(); });
-document.getElementById('statsOpen').addEventListener('click', ouvrirStatistiques_);
 document.getElementById('statsFermer').addEventListener('click', function () { document.getElementById('statsDialog').close(); });
 
 function remplirSeances() {
