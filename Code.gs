@@ -67,6 +67,7 @@ var CACHE_TTL_FICHE = 60;
 // séparée des rôles d'encadrant : consulter les statistiques de toutes les
 // lignes n'est pas nécessaire pour renseigner une séance.
 var ACCES_STATS_GLOBALES_TEST = ['flebrigand@gmail.com'];
+var ACCES_STATS_GLOBALES_PROD = ['flebrigand@gmail.com'];
 // La page reste en TEST, mais compare les données réelles en lecture seule :
 // tous les classeurs n'ont pas de copie TEST. Aucun de ces classeurs n'est
 // modifié par le calcul.
@@ -263,20 +264,29 @@ function getStats_(cible) {
 // cette personne possède un rôle encadrant ou prépa encadrant actif sur la
 // ligne demandée. Les statistiques globales restent traitées séparément.
 function getStatsLigne_(body) {
-  if (body.environnement !== 'TEST') {
+  var environnement = String(body.environnement || '');
+  if (environnement !== 'TEST' && environnement !== 'PROD') {
     throw new Error('statistiques de ligne indisponibles pour cet environnement');
   }
+  var cible = String(body.cible || '');
+  if (cible.indexOf(environnement + '-') !== 0) {
+    throw new Error('cible incompatible avec cet environnement');
+  }
   var email = verifierJeton_(body.idToken).toLowerCase();
-  var code = String(body.cible || '').replace(/^(TEST|PROD)-/, '');
+  var code = cible.replace(/^(TEST|PROD)-/, '');
   var par = lireParametrage_();
   var pid = Object.keys(par.personnes).filter(function (id) {
     return String(par.personnes[id].email || '').toLowerCase() === email;
   })[0];
-  var autorise = pid && par.inscriptions.some(function (inscription) {
+  var autoriseInscription = pid && par.inscriptions.some(function (inscription) {
     return inscription.id === pid && par.estActive(inscription) &&
       inscription.groupe === code &&
       (inscription.role === 'encadrant' || inscription.role === 'prépa encadrant');
   });
+  var autoriseAffectation = pid && (par.encadrements || []).some(function (encadrement) {
+    return encadrement.id === pid && encadrement.ligne === code;
+  });
+  var autorise = autoriseInscription || autoriseAffectation;
   if (!autorise) throw new Error('accès réservé aux encadrants de cette ligne');
   return getStats_(body.cible);
 }
@@ -284,16 +294,18 @@ function getStatsLigne_(body) {
 // La vue globale ne transmet que des agrégats par ligne. Les statistiques
 // individuelles et les noms des participants restent dans leur classeur.
 function getStatsClub_(body) {
-  if (body.environnement !== 'TEST') {
+  var environnement = String(body.environnement || '');
+  if (environnement !== 'TEST' && environnement !== 'PROD') {
     throw new Error('vue globale indisponible pour cet environnement');
   }
   var email = verifierJeton_(body.idToken).toLowerCase();
-  if (ACCES_STATS_GLOBALES_TEST.indexOf(email) === -1) {
+  var autorises = environnement === 'PROD' ? ACCES_STATS_GLOBALES_PROD : ACCES_STATS_GLOBALES_TEST;
+  if (autorises.indexOf(email) === -1) {
     throw new Error('accès réservé à Frédéric et aux responsables du club');
   }
 
   var cache = CacheService.getScriptCache();
-  var cle = 'v2|stats-club|TEST';
+  var cle = 'v2|stats-club|' + environnement;
   var brut = cache.get(cle);
   if (brut) return JSON.parse(brut);
 
@@ -918,6 +930,21 @@ function lireParametrage_() {
 
   function estActive(x) { return !x.fin || x.fin >= aujourdhui; }
 
+  // Les encadrants des lignes de séances (DNF/STA) sont définis dans les
+  // affectations de créneaux, pas nécessairement dans Inscriptions. Cette
+  // source complète le contrôle des droits de statistiques de leur ligne.
+  var encadrements = [];
+  var va = ssp.getSheetByName('Creneaux_Affectations').getDataRange().getValues();
+  for (var r3 = 4; r3 < va.length; r3++) {
+    var affectation = va[r3];
+    var codeLigne = String(affectation[3] || '').trim();   // colonne D
+    var idEncadrant = affectation[5];                       // colonne F
+    var debutAffectation = affectation[2] instanceof Date ? affectation[2] : null; // C
+    if (codeLigne && idEncadrant && (!debutAffectation || debutAffectation <= aujourdhui)) {
+      encadrements.push({ id: idEncadrant, ligne: codeLigne });
+    }
+  }
+
   // Les membres de LC (compétition) sont aussi membres de L4 : une personne
   // active en LC sans inscription L4 active reçoit une inscription L4/élève
   // synthétique, en mémoire seulement (rien n'est écrit dans Paramétrage),
@@ -936,7 +963,7 @@ function lireParametrage_() {
   });
 
   return { saison: saison, personnes: personnes, ordreClub: ordreClub,
-           inscriptions: inscriptions, estActive: estActive };
+           inscriptions: inscriptions, encadrements: encadrements, estActive: estActive };
 }
 
 // Toutes les inscriptions actives (aujourd'hui) d'une personne, tous groupes

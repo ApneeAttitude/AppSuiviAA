@@ -136,6 +136,20 @@ reste un sélecteur natif afin d'être fiable sur les téléphones ; sa carte et
 son chevron explicitent l'ouverture de la liste sans ajouter de comportement
 spécifique au navigateur.
 
+### Page unique PROD
+
+Après validation du parcours TEST, `index.html` fournit l'URL unique de
+production : `https://apneeattitude.github.io/AppSuiviAA/?ligne=L2`. Le même
+paramètre ouvre L1, L2, L3, L4, LC, DNF1, DNF2, STA1 ou STA2 ; STAC demeure
+visible mais indisponible tant que sa ligne n'est pas créée. Les anciennes URL
+par ligne sont maintenues pendant la transition. La page `statistiques/` est
+la vue globale de production et n'est pas mentionnée dans le guide.
+
+Depuis la version Apps Script PROD 61, le même contrôle est actif en
+production. Pour les lignes DNF et STA, les encadrants sont lus dans
+`Creneaux_Affectations` afin de compléter les rôles présents dans
+`Inscriptions`.
+
 Depuis la version Apps Script TEST 59, les statistiques de ligne de la page
 unique sont demandées par `POST` avec le jeton Google. Le serveur lit le
 courriel associé à l'ID dans `AA - Parametrage 2026-2027` / `Personnes`,

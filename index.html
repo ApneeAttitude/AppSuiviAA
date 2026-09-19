@@ -1,0 +1,739 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Suivi des présences</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Manrope:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../assets/appsuivi.css">
+</head>
+<body>
+
+
+<div class="bg-photo"></div>
+<header><span class="eyebrow">Suivi des présences</span><div class="header-row"><span id="titreLigne" class="titre">L2 · Intermédiaire</span><button type="button" id="menuOuvrir" class="menu-open" aria-haspopup="dialog" aria-label="Ouvrir le menu">☰</button></div></header>
+
+<main>
+  <div id="signin" class="card">
+    <p>Connexion avec votre compte Google du club.</p>
+    <div id="g_id_signin"></div>
+  </div>
+
+  <div id="app">
+    <div class="card">
+      <div class="session-block">
+        <div class="seance-heading">
+        <label for="seance">Séance</label>
+        </div>
+        <div class="session-picker">
+          <select id="seance" aria-label="Choisir une séance"></select>
+          <span class="seance-select-indicator" aria-hidden="true">⌄</span>
+          <div class="status-pill-wrap">
+            <label for="statut" class="sr-only">Statut de la séance</label>
+            <select id="statut" aria-label="Statut de la séance"></select>
+          </div>
+        </div>
+      </div>
+      <div class="encadrant-row">
+        <div id="encadrant" class="encadrant-info" aria-live="polite"></div>
+        <button type="button" id="remplacantOuvrir" class="replacement-button" aria-haspopup="dialog"><span class="replacement-button-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h11l-3-3M17 17H6l3 3"/></svg></span><span id="remplacantOuvrirLabel">Remplacer</span></button>
+      </div>
+      <p id="remplacantNote" class="replacement-note" role="status" hidden>Modification non enregistrée</p>
+      <button type="button" id="planToggle" class="accordion-toggle" aria-expanded="false">
+        <span id="planToggleLabel">📋 Plan de séance</span><span class="chevron">›</span>
+      </button>
+      <div id="planContent" class="accordion-content" hidden>
+        <div class="plan-toolbar">
+          <button type="button" data-cmd="bold" title="Gras"><b>G</b></button>
+          <button type="button" data-cmd="italic" title="Italique"><i>I</i></button>
+          <button type="button" data-cmd="insertUnorderedList" title="Liste à puces">☰</button>
+          <button type="button" data-cmd="link" title="Insérer un lien">🔗</button>
+        </div>
+        <div id="planSeance" class="plan-editor" contenteditable="true" data-placeholder="Texte et/ou lien (facultatif)"></div>
+      </div>
+
+    </div>
+
+    <div class="card">
+      <label for="recherche">Présences</label>
+      <input type="text" id="recherche" placeholder="Nom ou prénom…" autocomplete="off">
+      <div id="suggestions"></div>
+    </div>
+
+    <div class="card">
+      <div id="presents"></div>
+      <p id="vide" style="color:#888;font-size:14px;">Aucun présent ajouté pour l'instant.</p>
+    </div>
+  </div>
+</main>
+
+<div class="fixed-bar" id="bar" style="display:none;">
+  <button id="btnSave">Enregistrer la séance</button>
+  <div id="msg"></div>
+</div>
+
+<dialog id="menuDialog" class="menu-dialog" aria-labelledby="menuTitre">
+  <div class="menu-heading"><h2 id="menuTitre">Menu</h2><button type="button" id="menuFermer" class="menu-close" aria-label="Fermer le menu">✕</button></div>
+  <p class="menu-section">Mes séances</p>
+  <div id="menuLignes"></div>
+  <p class="menu-section">Suivi</p>
+  <button type="button" id="menuStatsLigne" class="menu-link">Statistiques de la ligne</button>
+  <a class="menu-link" href="statistiques/">Statistiques générales <small>Responsables</small></a>
+  <p class="menu-section">Aide</p>
+  <a class="menu-link" href="guides/Guide-AppSuiviAA.pdf" target="_blank" rel="noopener">Guide d’utilisation</a>
+</dialog>
+
+<dialog id="statsDialog" class="stats-dialog" aria-labelledby="statsTitre">
+  <div class="stats-heading">
+    <h2 id="statsTitre">Fréquentation de la ligne</h2>
+    <button type="button" id="statsFermer" class="stats-close" aria-label="Fermer les statistiques">✕</button>
+  </div>
+  <p id="statsRegle" class="stats-rule"></p>
+  <div id="statsContenu" aria-live="polite"></div>
+</dialog>
+
+<dialog id="remplacantDialog" class="replacement-dialog" aria-labelledby="remplacantTitre" aria-describedby="remplacantAide">
+  <div class="replacement-heading">
+    <h2 id="remplacantTitre">Choisir un remplaçant</h2>
+    <button type="button" id="remplacantFermer" aria-label="Fermer sans modifier">✕</button>
+  </div>
+  <p id="remplacantAide">Choisis un encadrant, puis utilise « Enregistrer la séance » pour sauvegarder.</p>
+  <label for="remplacantRecherche">Rechercher un encadrant</label>
+  <input id="remplacantRecherche" type="text" placeholder="Nom ou prénom…" autocomplete="off">
+  <p id="remplacantResultat" role="status"></p>
+  <div id="remplacantSuggestions"></div>
+</dialog>
+
+<script>
+// --- À renseigner après déploiement -------------------------------------
+// Script STANDALONE unique (Code.gs), un seul code source pour toutes les
+// lignes et tous les environnements. Mais un déploiement distinct par
+// palier DEV/TEST/PROD (Gérer les déploiements, dans script.google.com) :
+// chaque palier a donc SA PROPRE URL /exec, partagée seulement entre les
+// lignes de ce même palier. Le paramétrage cible -> classeur se trouve
+// dans Code.gs (objet CLASSEURS), pas ici.
+var WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxTeOKaPx53j2exXGt6Hql8BIe22WRzxTqCiY3gpe60gvRmj8BanUjIH9tsrnoCsPw94g/exec";
+var GOOGLE_CLIENT_ID = "490347116418-0outack1od53036gfeca2enatbopogfm.apps.googleusercontent.com";
+var CIBLE = "PROD-L2";
+var LIGNES_PROD = {
+  'L1':   { cible: 'PROD-L1', libelle: 'Débutants', disponible: true },
+  'L2':   { cible: 'PROD-L2', libelle: 'Intermédiaire', disponible: true },
+  'L3':   { cible: 'PROD-L3', libelle: 'Confirmés', disponible: true },
+  'L4':   { cible: 'PROD-L4', libelle: 'Avancés', disponible: true },
+  'LC':   { cible: 'PROD-LC', libelle: 'Ligne compétition', disponible: true },
+  'DNF1': { cible: 'PROD-DNF1', libelle: 'Apnée dynamique sans palme', disponible: true },
+  'DNF2': { cible: 'PROD-DNF2', libelle: 'Apnée dynamique sans palme', disponible: true },
+  'STA1': { cible: 'PROD-STA1', libelle: 'Apnée statique', disponible: true },
+  'STA2': { cible: 'PROD-STA2', libelle: 'Apnée statique', disponible: true },
+  'STAC':  { libelle: 'Apnée statique compétition', disponible: false }
+};
+var ligneCourante = 'L2';
+// -------------------------------------------------------------------------
+
+var idToken = null;
+var roster = [];
+var seances = [];
+var zonesConfort = [];  // {id, libelle, actif} — cf. Code.gs lireListeZoneConfort_ (09/09/2026)
+var statutsSeance = []; // {id, libelle, actif} — même modèle que zonesConfort
+var presents = {};   // apneiste_id -> {id, nom, prenom, qualite, observation}
+var presentsOrder = [];  // ordre d'affichage : dernier ajoute en tete (demande du 06/09/2026)
+
+function handleCredentialResponse(resp) {
+  idToken = resp.credential;
+  document.getElementById('signin').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('bar').style.display = 'block';
+  appliquerLigne_(ligneDepuisUrl_());
+}
+
+window.onload = function () {
+  google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    callback: handleCredentialResponse,
+    auto_select: true
+  });
+  google.accounts.id.renderButton(
+    document.getElementById('g_id_signin'),
+    { theme: 'filled_blue', size: 'large', width: 280 }
+  );
+};
+
+function ligneDepuisUrl_() {
+  var code = new URLSearchParams(window.location.search).get('ligne');
+  return code && LIGNES_PROD[code.toUpperCase()] && LIGNES_PROD[code.toUpperCase()].disponible ? code.toUpperCase() : 'L2';
+}
+function titreLigne_() { return ligneCourante + ' · ' + LIGNES_PROD[ligneCourante].libelle; }
+function renderMenuLignes_() {
+  var wrap = document.getElementById('menuLignes');
+  wrap.textContent = '';
+  Object.keys(LIGNES_PROD).forEach(function (code) {
+    var ligne = LIGNES_PROD[code];
+    var button = document.createElement('button');
+    button.type = 'button'; button.className = 'menu-line' + (code === ligneCourante ? ' is-current' : '');
+    button.disabled = !ligne.disponible;
+    button.textContent = code;
+    var info = document.createElement('small'); info.textContent = ligne.disponible ? ligne.libelle : 'Ligne à créer'; button.appendChild(info);
+    if (ligne.disponible) button.onclick = function () { appliquerLigne_(code); document.getElementById('menuDialog').close(); };
+    wrap.appendChild(button);
+  });
+}
+function appliquerLigne_(code) {
+  if (!LIGNES_PROD[code] || !LIGNES_PROD[code].disponible) return;
+  ligneCourante = code;
+  CIBLE = LIGNES_PROD[code].cible;
+  document.getElementById('titreLigne').textContent = titreLigne_();
+  document.title = 'Présences — ' + code;
+  var url = new URL(window.location.href); url.searchParams.set('ligne', code); window.history.replaceState({}, '', url);
+  presents = {}; presentsOrder = []; roster = []; seances = [];
+  document.getElementById('presents').textContent = '';
+  document.getElementById('suggestions').textContent = '';
+  renderMenuLignes_();
+  chargerDonnees();
+}
+function chargerDonnees() {
+  fetch(WEB_APP_URL + '?action=data&cible=' + encodeURIComponent(CIBLE), { cache: 'no-store' })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (!d.ok) { afficherMessage(d.error, true); return; }
+      roster = d.roster;
+      seances = d.seances;
+      zonesConfort = d.listesZoneConfort || [];
+      statutsSeance = d.listesStatutsSeance || [];
+      remplirSeances();
+    })
+    .catch(function (e) { afficherMessage('Erreur de chargement : ' + e, true); });
+}
+
+function ouvrirStatistiques_() {
+  var dialog = document.getElementById('statsDialog');
+  var contenu = document.getElementById('statsContenu');
+  document.getElementById('statsRegle').textContent = '';
+  contenu.textContent = 'Chargement des statistiques…';
+  dialog.showModal();
+  fetch(WEB_APP_URL, {
+    method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: 'statsLigne', environnement: 'PROD', cible: CIBLE, idToken: idToken })
+  })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (!d.ok) throw new Error(d.error || 'statistiques indisponibles');
+      afficherStatistiques_(d);
+    })
+    .catch(function (e) { contenu.textContent = 'Impossible de charger les statistiques : ' + e.message; });
+}
+function libelleMoyenne_(valeur) { return String(valeur).replace('.', ',') + ' pers.'; }
+function ajouterBarresStats_(parent, donnees, maximumCommun) {
+  if (!donnees.length) {
+    var vide = document.createElement('p'); vide.className = 'stats-empty';
+    vide.textContent = 'Aucune séance prise en compte pour le moment.'; parent.appendChild(vide); return;
+  }
+  var maximum = maximumCommun || 1;
+  donnees.forEach(function (item) {
+    var ligne = document.createElement('div'); ligne.className = 'stats-row';
+    var libelle = document.createElement('span'); libelle.textContent = item.libelle;
+    var piste = document.createElement('div'); piste.className = 'stats-track';
+    var barre = document.createElement('div'); barre.className = 'stats-bar';
+    barre.style.width = Math.round((item.moyenne / maximum) * 100) + '%'; piste.appendChild(barre);
+    var valeur = document.createElement('span'); valeur.className = 'stats-value'; valeur.textContent = libelleMoyenne_(item.moyenne);
+    ligne.appendChild(libelle); ligne.appendChild(piste); ligne.appendChild(valeur); parent.appendChild(ligne);
+  });
+}
+function afficherStatistiques_(stats) {
+  var contenu = document.getElementById('statsContenu');
+  contenu.textContent = '';
+  document.getElementById('statsRegle').textContent = stats.regle + '.';
+  var synthese = document.createElement('div'); synthese.className = 'stats-summary';
+  [['Moyenne par séance', libelleMoyenne_(stats.moyenne)], ['Tenues', String(stats.seances) + ' séances'], ['À compléter', String((stats.seances_a_completer || []).length) + ' séances']].forEach(function (item) {
+    var carte = document.createElement('div'); carte.className = 'stats-kpi';
+    var nombre = document.createElement('strong'); nombre.textContent = item[1];
+    var libelle = document.createElement('span'); libelle.textContent = item[0];
+    carte.appendChild(nombre); carte.appendChild(libelle); synthese.appendChild(carte);
+  });
+  contenu.appendChild(synthese);
+  var toutesLesMoyennes = (stats.mensuel || []).concat(stats.hebdomadaire || []);
+  var maximumCommun = Math.max.apply(null, toutesLesMoyennes.map(function (x) { return x.moyenne; })) || 1;
+  [['Évolution mensuelle', stats.mensuel], ['Moyenne par jour', stats.hebdomadaire]].forEach(function (section) {
+    var bloc = document.createElement('section'); bloc.className = 'stats-section';
+    var titre = document.createElement('h3'); titre.textContent = section[0]; bloc.appendChild(titre);
+    ajouterBarresStats_(bloc, section[1], maximumCommun); contenu.appendChild(bloc);
+  });
+  var aCompleter = stats.seances_a_completer || [];
+  var blocACompleter = document.createElement('section'); blocACompleter.className = 'stats-section';
+  var titreACompleter = document.createElement('h3'); titreACompleter.textContent = 'Séances à compléter'; blocACompleter.appendChild(titreACompleter);
+  if (!aCompleter.length) {
+    var videACompleter = document.createElement('p'); videACompleter.className = 'stats-empty'; videACompleter.textContent = 'Aucune séance passée à compléter.'; blocACompleter.appendChild(videACompleter);
+  } else {
+    var listeACompleter = document.createElement('ul'); listeACompleter.className = 'stats-todo';
+    aCompleter.forEach(function (seance) {
+      var ligne = document.createElement('li');
+      var date = document.createElement('strong'); date.textContent = seance.date;
+      ligne.appendChild(date); ligne.appendChild(document.createTextNode(' · ' + seance.encadrant)); listeACompleter.appendChild(ligne);
+    });
+    blocACompleter.appendChild(listeACompleter);
+  }
+  contenu.appendChild(blocACompleter);
+}
+document.getElementById('menuOuvrir').addEventListener('click', function () { renderMenuLignes_(); document.getElementById('menuDialog').showModal(); });
+document.getElementById('menuFermer').addEventListener('click', function () { document.getElementById('menuDialog').close(); });
+document.getElementById('menuDialog').addEventListener('close', function () { document.getElementById('menuOuvrir').focus(); });
+document.getElementById('menuStatsLigne').addEventListener('click', function () { document.getElementById('menuDialog').close(); ouvrirStatistiques_(); });
+document.getElementById('statsFermer').addEventListener('click', function () { document.getElementById('statsDialog').close(); });
+
+function remplirSeances() {
+  var sel = document.getElementById('seance');
+  sel.innerHTML = '';
+  // ordre chronologique, la plus ancienne en haut (demande du 07/09/2026)
+  seances.forEach(function (s) {
+    var opt = document.createElement('option');
+    opt.value = s.id;
+    var horaire = (s.heure_debut && s.heure_fin) ? (s.heure_debut + ' - ' + s.heure_fin) : '';
+    opt.textContent = s.numero + ' . ' + s.jour + ' ' + s.date + (horaire ? ' . ' + horaire : '');
+    sel.appendChild(opt);
+  });
+  sel.onchange = ouvrirSeance;
+  if (seances.length) {
+    // À l'ouverture : séance du jour, sinon prochaine séance. Si la fenêtre
+    // ne contient plus de séance à venir, on reprend la plus récente passée.
+    var todayIso = new Date().toISOString().slice(0, 10);
+    var aujourdhui = seances.filter(function (s) { return s.date_iso === todayIso; })[0];
+    var prochaine = seances.filter(function (s) { return s.date_iso && s.date_iso > todayIso; })[0];
+    var passees = seances.filter(function (s) { return s.date_iso && s.date_iso < todayIso; });
+    var defaut = (aujourdhui || prochaine || passees[passees.length - 1] || seances[0]).id;
+    sel.value = defaut;
+    ouvrirSeance();
+  }
+}
+
+// Remplacement en brouillon, enregistré avec la séance uniquement.
+var remplacementId = '';
+var remplacementInitialId = '';
+function seanceCourante_() {
+  return seances.find(function (s) { return s.id === document.getElementById('seance').value; });
+}
+function appliquerStyleStatut_(select) {
+  select.classList.remove('status-planifiee', 'status-tenue', 'status-annulee',
+                          'status-fermee', 'status-indisponible');
+  var classes = {
+    '1': 'status-planifiee', '2': 'status-tenue',
+    '3': 'status-annulee', '4': 'status-fermee'
+  };
+  select.classList.add(classes[String(select.value)] || 'status-indisponible');
+}
+function afficherStatutSeance() {
+  var select = document.getElementById('statut');
+  var s = seanceCourante_();
+  var valeur = s ? String(s.statut_id || '') : '';
+  var options = statutsSeance.filter(function (x) {
+    return x.actif || String(x.id) === valeur;
+  });
+  select.innerHTML = '';
+  if (!options.length) {
+    var indisponible = document.createElement('option');
+    indisponible.textContent = s && s.statut ? s.statut : 'Statut indisponible';
+    indisponible.value = '';
+    select.appendChild(indisponible);
+    appliquerStyleStatut_(select);
+    select.disabled = true;
+    return;
+  }
+  options.forEach(function (x) {
+    var option = document.createElement('option');
+    option.value = x.id;
+    option.textContent = x.libelle;
+    select.appendChild(option);
+  });
+  select.value = valeur;
+  if (select.value === '') select.value = String(options[0].id);
+  appliquerStyleStatut_(select);
+  select.disabled = !s;
+}
+document.getElementById('statut').addEventListener('change', function () {
+  appliquerStyleStatut_(this);
+});
+function initialiserRemplacement_() {
+  var s = seanceCourante_();
+  remplacementInitialId = s && s.remplacant_actif ? String(s.responsable_id || '') : '';
+  remplacementId = remplacementInitialId;
+  afficherEncadrant();
+}
+function afficherEncadrant() {
+  var s = seanceCourante_();
+  // Si aucun remplacant n'est actif (selection courante OU initiale), on
+  // affiche l'encadrant HABITUEL du creneau (responsable_habituel_id,
+  // independant de tout remplacement en cours - cf. Code.gs), jamais
+  // s.encadrant_prenom/nom qui refletent l'identite courante uniquement.
+  var idAffiche = remplacementId || (s ? String(s.responsable_habituel_id || '') : '');
+  var p = roster.find(function (p) { return String(p.id) === idAffiche; });
+  var nom = p ? (p.prenom + ' ' + p.nom).trim() : '';
+  var el = document.getElementById('encadrant');
+  el.textContent = '';
+  var strong = document.createElement('strong');
+  strong.textContent = nom || (remplacementId ? 'Remplaçant' : 'Encadrant habituel');
+  el.appendChild(strong);
+  var precision = document.createElement('span');
+  precision.className = 'encadrant-role';
+  precision.textContent = remplacementId ? 'Encadrant remplaçant' : 'Encadrant habituel';
+  el.appendChild(precision);
+  document.getElementById('remplacantOuvrirLabel').textContent = remplacementId ? 'Modifier' : 'Remplacer';
+  document.getElementById('remplacantOuvrir').classList.toggle('is-active', !!remplacementId);
+  document.getElementById('remplacantOuvrir').disabled = !s;
+  document.getElementById('remplacantNote').hidden = remplacementId === remplacementInitialId;
+}
+function normaliserRecherche_(texte) {
+  return String(texte || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+function rechercherRemplacants_() {
+  var q = normaliserRecherche_(document.getElementById('remplacantRecherche').value);
+  var s = seanceCourante_();
+  var pHabituel = s ? roster.find(function (p) { return String(p.id) === String(s.responsable_habituel_id || ''); }) : null;
+  var nomHabituel = (pHabituel ? (pHabituel.prenom + ' ' + pHabituel.nom).trim() : '') || 'encadrant habituel';
+  var candidats = roster.filter(function (p) {
+    return (p.est_encadrant === true || normaliserRecherche_(p.role).includes('encadrant')) &&
+      (!q || normaliserRecherche_(p.nom).startsWith(q) || normaliserRecherche_(p.prenom).startsWith(q) ||
+       normaliserRecherche_(p.prenom + ' ' + p.nom).startsWith(q));
+  }).sort(function (a, b) { return (a.nom + a.prenom).localeCompare(b.nom + b.prenom, 'fr'); });
+  var box = document.getElementById('remplacantSuggestions');
+  box.replaceChildren();
+  // Ligne fixe "encadrant habituel" : toujours visible, jamais filtree par la recherche
+  // (demande de Fred du 12/09/2026 - remplace l'ancien bouton separe).
+  var rowHabituel = document.createElement('div'); rowHabituel.className = 'roster-item roster-item-habituel';
+  var labelHabituel = document.createElement('span'); labelHabituel.textContent = '↩ ' + nomHabituel + ' (habituel)';
+  var boutonHabituel = document.createElement('button'); boutonHabituel.type = 'button';
+  boutonHabituel.textContent = remplacementId === '' ? 'Sélectionné' : 'Choisir';
+  boutonHabituel.setAttribute('aria-label', 'Revenir à l’encadrant habituel, ' + nomHabituel);
+  boutonHabituel.onclick = function () { choisirRemplacant_(''); };
+  rowHabituel.append(labelHabituel, boutonHabituel); box.appendChild(rowHabituel);
+  document.getElementById('remplacantResultat').textContent = candidats.length ?
+    candidats.length + ' encadrant(s)' : 'Aucun encadrant trouvé.';
+  candidats.forEach(function (p) {
+    var row = document.createElement('div'); row.className = 'roster-item';
+    var label = document.createElement('span'); label.textContent = p.prenom + ' ' + p.nom;
+    var button = document.createElement('button'); button.type = 'button';
+    button.textContent = String(p.id) === remplacementId ? 'Sélectionné' : 'Choisir';
+    button.setAttribute('aria-label', 'Choisir ' + p.prenom + ' ' + p.nom);
+    button.onclick = function () { choisirRemplacant_(String(p.id)); };
+    row.append(label, button); box.appendChild(row);
+  });
+}
+function choisirRemplacant_(id) {
+  remplacementId = id;
+  afficherEncadrant();
+  document.getElementById('remplacantDialog').close();
+}
+document.getElementById('remplacantOuvrir').addEventListener('click', function () {
+  document.getElementById('remplacantRecherche').value = '';
+  rechercherRemplacants_();
+  document.getElementById('remplacantDialog').showModal();
+  document.getElementById('remplacantRecherche').focus();
+});
+document.getElementById('remplacantRecherche').addEventListener('input', rechercherRemplacants_);
+document.getElementById('remplacantFermer').addEventListener('click', function () { document.getElementById('remplacantDialog').close(); });
+document.getElementById('remplacantDialog').addEventListener('close', function () { document.getElementById('remplacantOuvrir').focus(); });
+
+// Plan de séance (texte ou lien) : accordéon replié par défaut à chaque
+// changement de séance (option B retenue le 07/09/2026), prérempli si déjà
+// renseigné (dans le classeur ou par un encadrant précédent), modifiable
+// ici. Enregistré avec le même bouton "Enregistrer la séance" que les
+// présences — pas de bouton séparé.
+function afficherPlanSeance() {
+  var s = seances.filter(function (x) { return x.id === document.getElementById('seance').value; })[0];
+  var toggle = document.getElementById('planToggle');
+  var content = document.getElementById('planContent');
+  var texte = document.getElementById('planSeance');
+  texte.innerHTML = sanitizerPlan_((s && s.plan) || '');
+  document.getElementById('planToggleLabel').textContent =
+    '📋 Plan de séance' + (texte.textContent.trim() ? ' ✓' : '');
+  toggle.setAttribute('aria-expanded', 'false');
+  content.hidden = true;
+}
+
+// Editeur "texte riche" minimal pour le plan de seance (08/09/2026, en test
+// sur les lignes de suivi) : zone contenteditable + petite barre d'outils
+// (Gras/Italique/Liste/Lien) plutot qu'un textarea brut, pour pouvoir mettre
+// en forme un plan de seance un peu structure (liens vers des references,
+// listes d'exercices). document.execCommand est deprecie mais reste le
+// moyen le plus simple d'obtenir un editeur minimal sans dependance externe
+// (pas de librairie tierce sur GitHub Pages) ; a revoir si un navigateur
+// cesse de le supporter.
+var PLAN_TAGS_AUTORISES = { B: 1, STRONG: 1, I: 1, EM: 1, U: 1, UL: 1, OL: 1, LI: 1, BR: 1, DIV: 1, P: 1, SPAN: 1, A: 1 };
+
+function sanitizerPlan_(html) {
+  var tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  (function nettoyer(noeud) {
+    Array.prototype.slice.call(noeud.childNodes).forEach(function (enfant) {
+      if (enfant.nodeType === 1) {
+        if (!PLAN_TAGS_AUTORISES[enfant.tagName]) {
+          while (enfant.firstChild) noeud.insertBefore(enfant.firstChild, enfant);
+          noeud.removeChild(enfant);
+          return;
+        }
+        Array.prototype.slice.call(enfant.attributes).forEach(function (attr) {
+          if (enfant.tagName === 'A' && attr.name === 'href' && /^https?:\/\//i.test(attr.value)) return;
+          enfant.removeAttribute(attr.name);
+        });
+        if (enfant.tagName === 'A') {
+          enfant.setAttribute('target', '_blank');
+          enfant.setAttribute('rel', 'noopener noreferrer');
+        }
+        nettoyer(enfant);
+      } else if (enfant.nodeType !== 3) {
+        noeud.removeChild(enfant);
+      }
+    });
+  })(tmp);
+  return tmp.innerHTML;
+}
+
+document.querySelectorAll('.plan-toolbar button').forEach(function (btn) {
+  // mousedown + preventDefault : on garde la selection/le focus dans
+  // l'editeur, sinon le clic sur le bouton la ferait perdre avant que
+  // execCommand ne s'applique.
+  btn.addEventListener('mousedown', function (e) { e.preventDefault(); });
+  btn.addEventListener('click', function () {
+    var editeur = document.getElementById('planSeance');
+    editeur.focus();
+    var cmd = btn.dataset.cmd;
+    if (cmd === 'link') {
+      var url = window.prompt('Adresse du lien (https://…)');
+      if (!url) return;
+      if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+      var sel = window.getSelection();
+      if (!sel || sel.isCollapsed) {
+        var titre = window.prompt('Texte du lien à afficher (facultatif)', url);
+        if (titre === null) return;
+        if (!titre.trim()) titre = url;
+        document.execCommand('insertHTML', false,
+          '<a href="' + url.replace(/"/g, '&quot;') + '" target="_blank" rel="noopener noreferrer">' +
+          titre.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</a>');
+      } else {
+        document.execCommand('createLink', false, url);
+      }
+    } else {
+      document.execCommand(cmd, false, null);
+    }
+  });
+});
+
+function ouvrirSeance() {
+  presents = {};
+  presentsOrder = [];
+  render();
+  afficherStatutSeance();
+  initialiserRemplacement_();
+  afficherPlanSeance();
+  var seanceId = document.getElementById('seance').value;
+  fetch(WEB_APP_URL + '?action=fiche&cible=' + encodeURIComponent(CIBLE) +
+        '&seance=' + encodeURIComponent(seanceId), { cache: 'no-store' })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (!d.ok) { afficherMessage(d.error, true); return; }
+      d.presences.forEach(function (p) {
+        // la fiche renvoyee par le serveur n'indique pas si la personne est
+        // membre de la ligne : on le retrouve via le roster deja charge
+        // (demande "invite" du 07/09/2026).
+        var ref = roster.filter(function (r) { return r.id === p.apneiste_id; })[0];
+        p.membre = ref ? ref.membre !== false : true;
+        presents[p.apneiste_id] = p;
+        presentsOrder.push(String(p.apneiste_id));
+      });
+      render();
+    });
+}
+
+// Hauteur automatique du plan de seance (08/09/2026, suite au retour de
+// Fred : 75vh fixe etait trop grand) : la zone grandit avec le contenu
+// (comme un textarea auto-resize) jusqu'a 75vh (voir .plan-editor
+// max-height ci-dessus), au-dela de quoi elle defile en interne plutot
+// que de continuer a grandir.
+function redimensionnerPlan_() {
+  var editeur = document.getElementById('planSeance');
+  editeur.style.height = 'auto';
+  editeur.style.height = editeur.scrollHeight + 'px';
+}
+document.getElementById('planSeance').addEventListener('input', redimensionnerPlan_);
+
+document.getElementById('planToggle').addEventListener('click', function () {
+  var content = document.getElementById('planContent');
+  var expanded = this.getAttribute('aria-expanded') === 'true';
+  this.setAttribute('aria-expanded', String(!expanded));
+  content.hidden = expanded;
+  // recalcule seulement a l'ouverture : replie, l'editeur a un scrollHeight
+  // non fiable (contenu masque).
+  if (!content.hidden) redimensionnerPlan_();
+});
+
+document.getElementById('recherche').addEventListener('input', function (e) {
+  var q = e.target.value.trim().toLowerCase();
+  var box = document.getElementById('suggestions');
+  box.innerHTML = '';
+  if (!q) return;
+  var matches = roster.filter(function (p) {
+    return !presents[p.id] &&
+      (p.nom.toLowerCase().indexOf(q) === 0 || p.prenom.toLowerCase().indexOf(q) === 0);
+  }).slice(0, 8);
+  matches.forEach(function (p) {
+    var div = document.createElement('div');
+    div.className = 'roster-item';
+    div.innerHTML = '<span>' + p.prenom + ' ' + p.nom +
+      (p.membre === false ? ' <em class="tag-invite">invite</em>' : '') + '</span>';
+    var btn = document.createElement('button');
+    btn.textContent = 'Ajouter';
+    btn.onclick = function () {
+      presents[p.id] = { apneiste_id: p.id, nom: p.nom, prenom: p.prenom,
+                         membre: p.membre !== false, qualite: '', observation: '' };
+      presentsOrder.unshift(String(p.id));   // ajout en tete de liste (demande du 06/09/2026)
+      document.getElementById('recherche').value = '';
+      box.innerHTML = '';
+      render();
+    };
+    div.appendChild(btn);
+    box.appendChild(div);
+  });
+});
+
+// Construit les <option> du menu deroulant "Zone de confort" a partir de
+// zonesConfort (chargee depuis l'API, cf. chargerDonnees) plutot que d'une
+// liste codee en dur : changer un libelle cote Sheet se repercute ici sans
+// retouche de ce fichier (09/09/2026, TEST-L2 uniquement pour l'instant).
+// Seules les valeurs actives sont proposees pour une nouvelle saisie, mais
+// une valeur deja selectionnee (meme retiree depuis) reste visible.
+function construireOptionsZoneConfort_(valeurActuelle) {
+  var html = '<option value="">Zone de confort (facultatif)</option>';
+  zonesConfort.forEach(function (z) {
+    var estActuelle = valeurActuelle !== '' && valeurActuelle !== undefined && valeurActuelle !== null &&
+                       Number(z.id) === Number(valeurActuelle);
+    if (!z.actif && !estActuelle) return;
+    html += '<option value="' + z.id + '"' + (estActuelle ? ' selected' : '') + '>' +
+            String(z.libelle).replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</option>';
+  });
+  return html;
+}
+
+// Redimensionne une observation jusqu'à trois lignes. Au-delà, la zone reste
+// compacte et défile verticalement pour éviter que la carte ne prenne toute
+// la hauteur de l'écran.
+function ajusterObservation_(textarea) {
+  textarea.style.height = 'auto';
+  var style = window.getComputedStyle(textarea);
+  var lineHeight = parseFloat(style.lineHeight) || 19;
+  var padding = (parseFloat(style.paddingTop) || 0) + (parseFloat(style.paddingBottom) || 0);
+  var hauteurMax = Math.ceil(lineHeight * 3 + padding + 2);
+  var hauteur = Math.max(textarea.scrollHeight, parseFloat(style.minHeight) || 0);
+  textarea.style.maxHeight = hauteurMax + 'px';
+  textarea.style.height = Math.min(hauteur, hauteurMax) + 'px';
+  textarea.style.overflowY = hauteur > hauteurMax ? 'auto' : 'hidden';
+}
+
+function render() {
+  var wrap = document.getElementById('presents');
+  var vide = document.getElementById('vide');
+  wrap.innerHTML = '';
+  var ids = presentsOrder;
+  vide.style.display = ids.length ? 'none' : 'block';
+  ids.forEach(function (id) {
+    var p = presents[id];
+    var estInvite = p.membre === false;
+    var div = document.createElement('div');
+    div.className = 'present-item' + (estInvite ? ' invite' : '');
+    div.innerHTML =
+      '<div class="top"><span>' + p.prenom + ' ' + p.nom +
+      (estInvite ? ' <span class="badge-invite">invité</span>' : '') + '</span>' +
+      '<button data-id="' + id + '" class="retirer" aria-label="Retirer">&times;</button></div>' +
+      '<select data-id="' + id + '" class="qualite">' +
+        construireOptionsZoneConfort_(p.qualite) +
+      '</select>' +
+      '<textarea data-id="' + id + '" class="observation" rows="1" placeholder="Observation (facultatif)"></textarea>';
+    wrap.appendChild(div);
+    var observation = div.querySelector('.observation');
+    observation.value = p.observation || '';
+    ajusterObservation_(observation);
+  });
+  wrap.querySelectorAll('.retirer').forEach(function (b) {
+    b.onclick = function () {
+      delete presents[b.dataset.id];
+      presentsOrder = presentsOrder.filter(function (x) { return x !== b.dataset.id; });
+      render();
+    };
+  });
+  wrap.querySelectorAll('.qualite').forEach(function (s) {
+    s.onchange = function () { presents[s.dataset.id].qualite = s.value === '' ? '' : Number(s.value); };
+  });
+  wrap.querySelectorAll('.observation').forEach(function (i) {
+    i.oninput = function () {
+      presents[i.dataset.id].observation = i.value;
+      ajusterObservation_(i);
+    };
+  });
+}
+
+document.getElementById('btnSave').addEventListener('click', function () {
+  var btn = this;
+  btn.disabled = true;
+  document.getElementById('seance').disabled = true;
+  document.getElementById('statut').disabled = true;
+  document.getElementById('remplacantOuvrir').disabled = true;
+  afficherMessage('Enregistrement…', false);
+  var payload = {
+    action: 'saveSeance',
+    cible: CIBLE,
+    idToken: idToken,
+    seance_id: document.getElementById('seance').value,
+    statut_id: document.getElementById('statut').value === '' ? null : Number(document.getElementById('statut').value),
+    plan_seance: sanitizerPlan_(document.getElementById('planSeance').innerHTML),
+    remplacant_id: remplacementId === remplacementInitialId ? null : remplacementId,
+    presences: presentsOrder.map(function (id) {
+      var p = presents[id];
+      return { apneiste_id: id, present: true, qualite: p.qualite, observation: p.observation };
+    })
+  };
+  fetch(WEB_APP_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },  // evite le preflight CORS
+    body: JSON.stringify(payload)
+  })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      btn.disabled = false;
+      document.getElementById('seance').disabled = false;
+      document.getElementById('statut').disabled = false;
+      document.getElementById('remplacantOuvrir').disabled = false;
+      if (!d.ok) { afficherMessage(d.error, true); return; }
+      var s = seanceCourante_();
+      var nomAffiche = document.querySelector('#encadrant strong').textContent;
+      s.remplacant_actif = !!remplacementId;
+      s.responsable_id = remplacementId;
+      s.encadrant_prenom = '';
+      s.encadrant_nom = nomAffiche;
+      remplacementInitialId = remplacementId;
+      afficherEncadrant();
+      afficherMessage(d.saved + ' présence(s) enregistrée(s).' +
+        (d.statut_force_tenue ? ' Statut passé automatiquement à « tenue ».' : ''), false);
+      // Recharge le nom habituel résolu par le serveur après un retour au titulaire.
+      fetch(WEB_APP_URL + '?action=data&cible=' + encodeURIComponent(CIBLE), { cache: 'no-store' })
+        .then(function (r) { return r.json(); }).then(function (data) {
+          if (!data.ok) return;
+          seances = data.seances;
+          statutsSeance = data.listesStatutsSeance || [];
+          afficherStatutSeance();
+          if (document.getElementById('seance').value === payload.seance_id && remplacementId === remplacementInitialId) initialiserRemplacement_();
+        }).catch(function () { /* La sauvegarde a réussi ; le nom sera relu à la prochaine ouverture. */ });
+    })
+    .catch(function (e) {
+      btn.disabled = false;
+      document.getElementById('seance').disabled = false;
+      document.getElementById('statut').disabled = false;
+      document.getElementById('remplacantOuvrir').disabled = false;
+      afficherMessage('Échec de l\'enregistrement : ' + e, true);
+    });
+});
+
+function afficherMessage(txt, isErr) {
+  var m = document.getElementById('msg');
+  m.textContent = txt;
+  m.className = isErr ? 'err' : 'ok';
+}
+</script>
+</body>
+</html>
