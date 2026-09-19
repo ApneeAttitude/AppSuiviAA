@@ -197,6 +197,31 @@
   #signin { padding: 30px 16px; text-align: center; }
   #signin p { color: #16202b; }
   #app { display: none; }
+  .stats-open {
+    display: block; width: 100%; margin: 0 0 12px; padding: 11px 14px;
+    border: 1px solid rgba(255,255,255,.46); border-radius: 12px;
+    color: #fff; background: rgba(3,12,22,.42); font: inherit; font-weight: 700;
+    text-align: left; cursor: pointer; backdrop-filter: blur(12px);
+  }
+  .stats-open span { float: right; opacity: .8; }
+  .stats-dialog { width: min(560px, calc(100% - 28px)); max-height: 85dvh; border: 0; border-radius: 18px; padding: 20px; color: #16202b; background: #f3f8f8; overflow-y: auto; }
+  .stats-dialog::backdrop { background: rgba(3,12,22,.65); }
+  .stats-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .stats-heading h2 { margin: 0; font-size: 19px; }
+  .stats-close { width: 36px; height: 36px; border: 0; border-radius: 50%; background: rgba(15,110,106,.12); color: #0f5754; font: inherit; font-size: 18px; cursor: pointer; }
+  .stats-rule { margin: 6px 0 14px; font-size: 12px; color: #54636c; }
+  .stats-summary { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .stats-kpi { padding: 12px; border-radius: 12px; background: #fff; border: 1px solid rgba(15,110,106,.16); }
+  .stats-kpi strong { display: block; color: #0f6e6a; font: 700 25px 'Space Grotesk', sans-serif; }
+  .stats-kpi span { font-size: 12px; color: #5b6470; }
+  .stats-section { margin-top: 20px; }
+  .stats-section h3 { margin: 0 0 9px; font-size: 15px; }
+  .stats-row { display: grid; grid-template-columns: 75px 1fr 42px; gap: 8px; align-items: center; margin: 8px 0; font-size: 12px; }
+  .stats-track { height: 9px; overflow: hidden; border-radius: 99px; background: rgba(15,110,106,.12); }
+  .stats-bar { height: 100%; min-width: 3px; border-radius: inherit; background: linear-gradient(90deg, #0f6e6a, #3eaaa3); }
+  .stats-value { text-align: right; font-weight: 700; color: #0f5754; }
+  .stats-empty { margin: 10px 0; color: #5b6470; font-size: 14px; }
+  @media (max-width: 600px) { .stats-dialog { width: 100%; max-height: 85dvh; margin: auto 0 0; border-radius: 20px 20px 0 0; padding-bottom: max(20px, env(safe-area-inset-bottom)); } }
 </style>
 </head>
 <body>
@@ -212,6 +237,7 @@
   </div>
 
   <div id="app">
+    <button type="button" id="statsOpen" class="stats-open">📊 Statistiques de fréquentation <span aria-hidden="true">›</span></button>
     <div class="card">
       <div class="seance-heading">
         <label for="seance">Séance</label>
@@ -258,6 +284,15 @@
   <button id="btnSave">Enregistrer la séance</button>
   <div id="msg"></div>
 </div>
+
+<dialog id="statsDialog" class="stats-dialog" aria-labelledby="statsTitre">
+  <div class="stats-heading">
+    <h2 id="statsTitre">Fréquentation de la ligne</h2>
+    <button type="button" id="statsFermer" class="stats-close" aria-label="Fermer les statistiques">✕</button>
+  </div>
+  <p id="statsRegle" class="stats-rule"></p>
+  <div id="statsContenu" aria-live="polite"></div>
+</dialog>
 
 <dialog id="remplacantDialog" class="replacement-dialog" aria-labelledby="remplacantTitre" aria-describedby="remplacantAide">
   <div class="replacement-heading">
@@ -325,6 +360,58 @@ function chargerDonnees() {
     })
     .catch(function (e) { afficherMessage('Erreur de chargement : ' + e, true); });
 }
+
+function ouvrirStatistiques_() {
+  var dialog = document.getElementById('statsDialog');
+  var contenu = document.getElementById('statsContenu');
+  document.getElementById('statsRegle').textContent = '';
+  contenu.textContent = 'Chargement des statistiques…';
+  dialog.showModal();
+  fetch(WEB_APP_URL + '?action=stats&cible=' + encodeURIComponent(CIBLE), { cache: 'no-store' })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (!d.ok) throw new Error(d.error || 'statistiques indisponibles');
+      afficherStatistiques_(d);
+    })
+    .catch(function (e) { contenu.textContent = 'Impossible de charger les statistiques : ' + e.message; });
+}
+function libelleMoyenne_(valeur) { return String(valeur).replace('.', ',') + ' pers.'; }
+function ajouterBarresStats_(parent, donnees) {
+  if (!donnees.length) {
+    var vide = document.createElement('p'); vide.className = 'stats-empty';
+    vide.textContent = 'Aucune séance prise en compte pour le moment.'; parent.appendChild(vide); return;
+  }
+  var maximum = Math.max.apply(null, donnees.map(function (x) { return x.moyenne; })) || 1;
+  donnees.forEach(function (item) {
+    var ligne = document.createElement('div'); ligne.className = 'stats-row';
+    var libelle = document.createElement('span'); libelle.textContent = item.libelle;
+    var piste = document.createElement('div'); piste.className = 'stats-track';
+    var barre = document.createElement('div'); barre.className = 'stats-bar';
+    barre.style.width = Math.round((item.moyenne / maximum) * 100) + '%'; piste.appendChild(barre);
+    var valeur = document.createElement('span'); valeur.className = 'stats-value'; valeur.textContent = libelleMoyenne_(item.moyenne);
+    ligne.appendChild(libelle); ligne.appendChild(piste); ligne.appendChild(valeur); parent.appendChild(ligne);
+  });
+}
+function afficherStatistiques_(stats) {
+  var contenu = document.getElementById('statsContenu');
+  contenu.textContent = '';
+  document.getElementById('statsRegle').textContent = stats.regle + '.';
+  var synthese = document.createElement('div'); synthese.className = 'stats-summary';
+  [['Moyenne', libelleMoyenne_(stats.moyenne)], ['Séances', String(stats.seances) + ' tenues']].forEach(function (item) {
+    var carte = document.createElement('div'); carte.className = 'stats-kpi';
+    var nombre = document.createElement('strong'); nombre.textContent = item[1];
+    var libelle = document.createElement('span'); libelle.textContent = item[0];
+    carte.appendChild(nombre); carte.appendChild(libelle); synthese.appendChild(carte);
+  });
+  contenu.appendChild(synthese);
+  [['Évolution mensuelle', stats.mensuel], ['Moyenne par jour', stats.hebdomadaire]].forEach(function (section) {
+    var bloc = document.createElement('section'); bloc.className = 'stats-section';
+    var titre = document.createElement('h3'); titre.textContent = section[0]; bloc.appendChild(titre);
+    ajouterBarresStats_(bloc, section[1]); contenu.appendChild(bloc);
+  });
+}
+document.getElementById('statsOpen').addEventListener('click', ouvrirStatistiques_);
+document.getElementById('statsFermer').addEventListener('click', function () { document.getElementById('statsDialog').close(); });
 
 function remplirSeances() {
   var sel = document.getElementById('seance');

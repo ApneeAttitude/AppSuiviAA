@@ -83,6 +83,9 @@ function doGet(e) {
     if (action === 'fiche') {
       return jsonOut_(lirePresences_(cible, e.parameter.seance));
     }
+    if (action === 'stats') {
+      return jsonOut_(getStats_(cible));
+    }
     return jsonOut_({ ok: false, error: 'action inconnue : ' + action });
   } catch (err) {
     return jsonOut_({ ok: false, error: String(err) });
@@ -141,6 +144,93 @@ function getData_(cible) {
     ok: true, roster: lirePersonnes_(ss), seances: lireCalendrier_(ss),
     listesZoneConfort: lireListeZoneConfort_(ss),
     listesStatutsSeance: lireListeStatutsSeance_(ss)
+  };
+  cache.put(cle, JSON.stringify(resultat), CACHE_TTL_DONNEES);
+  return resultat;
+}
+
+// Statistiques de fréquentation : seules les séances passées, marquées
+// « tenue » et possédant au moins une présence sont prises en compte. Ce
+// choix évite d'interpréter une séance planifiée ou une saisie incomplète
+// comme une séance sans participant.
+function getStats_(cible) {
+  var cache = CacheService.getScriptCache();
+  var cle = 'v2|' + cible + '|stats';
+  var brut = cache.get(cle);
+  if (brut) return JSON.parse(brut);
+
+  var ss = ouvrirClasseur_(cible);
+  var shCalendrier = ss.getSheetByName(SHEET_CALENDRIER);
+  var shPresences = ss.getSheetByName(SHEET_PRESENCES);
+  if (!shCalendrier || !shPresences) throw new Error('onglet Calendrier ou Presences introuvable');
+
+  var presenceParSeance = {};
+  var presences = shPresences.getDataRange().getValues();
+  for (var p = 4; p < presences.length; p++) {
+    var idPresence = presences[p][0];
+    // Une présence est valide quand l'identifiant de l'apnéiste est résolu.
+    if (idPresence && presences[p][2]) {
+      var clePresence = String(idPresence);
+      presenceParSeance[clePresence] = (presenceParSeance[clePresence] || 0) + 1;
+    }
+  }
+
+  var maintenant = new Date();
+  maintenant.setHours(0, 0, 0, 0);
+  var calendrier = shCalendrier.getDataRange().getValues();
+  var totalParticipants = 0;
+  var totalSeances = 0;
+  var mois = {};
+  var jours = [
+    { cle: 1, libelle: 'Lundi', participants: 0, seances: 0 },
+    { cle: 2, libelle: 'Mardi', participants: 0, seances: 0 },
+    { cle: 3, libelle: 'Mercredi', participants: 0, seances: 0 },
+    { cle: 4, libelle: 'Jeudi', participants: 0, seances: 0 },
+    { cle: 5, libelle: 'Vendredi', participants: 0, seances: 0 },
+    { cle: 6, libelle: 'Samedi', participants: 0, seances: 0 },
+    { cle: 0, libelle: 'Dimanche', participants: 0, seances: 0 }
+  ];
+  for (var r = 4; r < calendrier.length; r++) {
+    var row = calendrier[r];
+    var date = row[1];
+    var idSeance = row[0];
+    var statut = String(row[8] || '').toLowerCase().trim();
+    var estDate = Object.prototype.toString.call(date) === '[object Date]';
+    var nbParticipants = presenceParSeance[String(idSeance)] || 0;
+    if (!idSeance || !estDate || date >= maintenant || statut !== 'tenue' || !nbParticipants) continue;
+
+    totalSeances++;
+    totalParticipants += nbParticipants;
+    var cleMois = Utilities.formatDate(date, Session.getScriptTimeZone(), 'yyyy-MM');
+    if (!mois[cleMois]) {
+      mois[cleMois] = {
+        cle: cleMois,
+        libelle: ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'][date.getMonth()] + ' ' + date.getFullYear(),
+        participants: 0,
+        seances: 0
+      };
+    }
+    mois[cleMois].participants += nbParticipants;
+    mois[cleMois].seances++;
+    var indexJour = jours.map(function (j) { return j.cle; }).indexOf(date.getDay());
+    jours[indexJour].participants += nbParticipants;
+    jours[indexJour].seances++;
+  }
+
+  function avecMoyenne_(x) {
+    return {
+      libelle: x.libelle,
+      seances: x.seances,
+      moyenne: x.seances ? Math.round((x.participants / x.seances) * 10) / 10 : 0
+    };
+  }
+  var resultat = {
+    ok: true,
+    regle: 'Séances passées, tenues et avec au moins une présence',
+    seances: totalSeances,
+    moyenne: totalSeances ? Math.round((totalParticipants / totalSeances) * 10) / 10 : 0,
+    mensuel: Object.keys(mois).sort().map(function (cleMois) { return avecMoyenne_(mois[cleMois]); }),
+    hebdomadaire: jours.filter(function (jour) { return jour.seances > 0; }).map(avecMoyenne_)
   };
   cache.put(cle, JSON.stringify(resultat), CACHE_TTL_DONNEES);
   return resultat;
@@ -633,6 +723,7 @@ function savePresences_(body) {
   // chargement de la page renverrait encore l'ancienne valeur pendant
   // CACHE_TTL_DONNEES.
   cache.remove('v2|' + body.cible + '|data');
+  cache.remove('v2|' + body.cible + '|stats');
 
   return {
     ok: true, saved: presences.length, par: email,
