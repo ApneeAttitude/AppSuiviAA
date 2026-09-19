@@ -677,9 +677,11 @@ function formatDate_(v) {
 // Mon Drive). À mettre à jour si ce classeur est un jour recréé ailleurs.
 var ID_PARAMETRAGE = '18vMX5fqFgCN7NrSkPsSr1ftVoonPFC5xEbjf73iM8Lw';
 
-// Lignes à synchroniser : seules celles réellement configurées dans
-// CLASSEURS (PROD-*) ci-dessus. DNF et STA ne le sont pas encore.
-var LIGNES_SYNC = ['L1', 'L2', 'L3', 'L4', 'LC'];
+// Lignes à synchroniser : toutes les lignes réellement configurées dans
+// CLASSEURS (PROD-*) ci-dessus. Chaque classeur reçoit aussi les encadrants
+// des autres lignes : ils sont ainsi disponibles comme remplaçants.
+// STAC sera ajoutée lors de la création de son classeur et de ses cibles.
+var LIGNES_SYNC = ['L1', 'L2', 'L3', 'L4', 'LC', 'DNF1', 'DNF2', 'STA1', 'STA2'];
 
 // ---------------------------------------------------------- lecture Parametrage
 // Lit tout ce qu'il faut du classeur de Paramétrage : le référentiel des
@@ -923,6 +925,53 @@ function synchroniserEffectifsTestL2() {
   var resultat = synchroniserPersonnesLigne_(par, 'L2', 'TEST-L2');
   Logger.log(JSON.stringify(resultat, null, 2));
   return resultat;
+}
+
+// Points d'entrée ciblés pour valider la synchronisation des lignes de
+// séances sans toucher aux classeurs de production.
+function synchroniserEffectifsTestDnf1() {
+  var par = lireParametrage_();
+  var resultat = synchroniserPersonnesLigne_(par, 'DNF1', 'TEST-DNF1');
+  Logger.log(JSON.stringify(resultat, null, 2));
+  return resultat;
+}
+
+function synchroniserEffectifsTestDnf2() {
+  var par = lireParametrage_();
+  var resultat = synchroniserPersonnesLigne_(par, 'DNF2', 'TEST-DNF2');
+  Logger.log(JSON.stringify(resultat, null, 2));
+  return resultat;
+}
+
+function synchroniserEffectifsTestSta1() {
+  var par = lireParametrage_();
+  var resultat = synchroniserPersonnesLigne_(par, 'STA1', 'TEST-STA1');
+  Logger.log(JSON.stringify(resultat, null, 2));
+  return resultat;
+}
+
+function synchroniserEffectifsTestSta2() {
+  var par = lireParametrage_();
+  var resultat = synchroniserPersonnesLigne_(par, 'STA2', 'TEST-STA2');
+  Logger.log(JSON.stringify(resultat, null, 2));
+  return resultat;
+}
+
+// Synchronise uniquement les lignes de séances déjà livrées en production.
+// Cette entrée évite de relancer les autres lignes lorsque le besoin porte
+// exclusivement sur la disponibilité des remplaçants DNF/STA.
+function synchroniserEffectifsLignesSeancesProd() {
+  var par = lireParametrage_();
+  var resultats = [];
+  ['DNF1', 'DNF2', 'STA1', 'STA2'].forEach(function (ligne) {
+    try {
+      resultats.push(synchroniserPersonnesLigne_(par, ligne));
+    } catch (e) {
+      resultats.push({ ligne: ligne, erreur: String(e) });
+    }
+  });
+  Logger.log(JSON.stringify(resultats, null, 2));
+  return resultats;
 }
 
 // --- Migration ponctuelle : mise en page de l'onglet Listes + colonne ----

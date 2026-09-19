@@ -284,11 +284,15 @@ rôles élève et encadrant reste proposée comme encadrant. Le serveur vérifie
 également ce rôle avant d'enregistrer le remplacement ; seul l'ID est écrit
 dans `Calendrier`.
 
-Pour une évolution de ce mécanisme, synchroniser d'abord le classeur TEST-L2
-avec `synchroniserEffectifsTestL2`, vérifier un encadrant d'une autre ligne,
-puis promouvoir la même version du déploiement Apps Script vers PROD. Après
-validation, lancer `synchroniserEffectifs` pour les cinq lignes PROD et publier
-les pages GitHub correspondantes.
+Depuis le 19/09/2026, `LIGNES_SYNC` inclut aussi DNF1, DNF2, STA1 et STA2.
+Les entrées `synchroniserEffectifsTestDnf1`, `synchroniserEffectifsTestDnf2`,
+`synchroniserEffectifsTestSta1` et `synchroniserEffectifsTestSta2` permettent
+de vérifier chaque classeur de test isolément. Après validation, la fonction
+`synchroniserEffectifsLignesSeancesProd` synchronise uniquement ces quatre
+lignes en production, sans modifier L1 à LC. La version 50 du déploiement
+Apps Script TEST puis PROD a été validée ainsi : chaque classeur expose les
+25 encadrants actifs du club dans la liste des remplaçants. STAC rejoindra
+cette synchronisation lors de la création de son classeur et de ses cibles.
 
 ## Statuts de séance
 
