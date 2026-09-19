@@ -90,9 +90,9 @@ def main():
 
     header(c, "Renseigner les présences", "Le guide rapide pour une saisie simple et fiable, depuis un téléphone ou un ordinateur.", 1)
     y = H - 69 * mm
-    y = numbered_step(c, y, 1, "Ouvrez le lien de votre ligne", "Les liens L1, L2, L3, L4, LC, DNF1, DNF2, STA1 et STA2 sont indiqués à la fin de ce guide.")
+    y = numbered_step(c, y, 1, "Ouvrez AppSuiviAA", "Utilisez le lien unique du club : apneeattitude.github.io/AppSuiviAA/. Le menu permet de choisir votre ligne.")
     y = numbered_step(c, y, 2, "Connectez-vous avec votre compte Google du club", "En cas de refus de connexion, contactez Fred.")
-    y = numbered_step(c, y, 3, "Choisissez la séance", "Utilisez le menu déroulant en haut de page. La séance du jour est souvent déjà sélectionnée.")
+    y = numbered_step(c, y, 3, "Choisissez la séance", "Utilisez la liste déroulante en haut de page. La séance du jour est souvent déjà sélectionnée.")
     y = numbered_step(c, y, 4, "Ajoutez les participants", "Tapez les premières lettres du prénom ou du nom, puis touchez Ajouter.")
     y = numbered_step(c, y, 5, "Enregistrez", "Touchez Enregistrer la séance. Le message final confirme le nombre de présences enregistrées.")
     callout(c, y - 2 * mm, "À savoir", "Vous pouvez revenir sur une séance pour la modifier ou la compléter.")
@@ -113,22 +113,14 @@ def main():
     y -= 50 * mm
     c.setFillColor(colors.HexColor("#0b4446"))
     c.setFont("Helvetica-Bold", 14)
-    c.drawString(M, y, "Vos liens, par ligne de suivi")
-    links = [("L1 - Initiation", "https://apneeattitude.github.io/AppSuiviAA/L1/"),
-             ("L2 - Intermédiaire", "https://apneeattitude.github.io/AppSuiviAA/L2/"),
-             ("L3 - Confirmé", "https://apneeattitude.github.io/AppSuiviAA/L3/"),
-             ("L4 - Expert", "https://apneeattitude.github.io/AppSuiviAA/L4/"),
-             ("LC - Compétition", "https://apneeattitude.github.io/AppSuiviAA/LC/"),
-             ("DNF1 - Dynamique sans palme (25 m)", "https://apneeattitude.github.io/AppSuiviAA/DNF1/"),
-             ("DNF2 - Dynamique sans palme (50 m)", "https://apneeattitude.github.io/AppSuiviAA/DNF2/"),
-             ("STA1 - Apnée statique", "https://apneeattitude.github.io/AppSuiviAA/STA1/"),
-             ("STA2 - Apnée statique", "https://apneeattitude.github.io/AppSuiviAA/STA2/")]
-    style = ParagraphStyle("links", fontName="Helvetica", fontSize=10.5,
-                           leading=17, textColor=INK)
-    left = "<br/>".join(f"<b>{label}</b><br/><font color='#0f7d78'>{url}</font>" for label, url in links[:4])
-    right = "<br/>".join(f"<b>{label}</b><br/><font color='#0f7d78'>{url}</font>" for label, url in links[4:])
-    draw_paragraph(c, left, M, y - 8 * mm, (W - 2 * M - gap) / 2, style)
-    draw_paragraph(c, right, M + (W - 2 * M + gap) / 2, y - 8 * mm, (W - 2 * M - gap) / 2, style)
+    c.drawString(M, y, "Un seul lien pour toutes les lignes")
+    link_style = ParagraphStyle("unique_link", fontName="Helvetica", fontSize=11,
+                                leading=16, textColor=INK)
+    c.setFillColor(colors.HexColor("#e8f5f6"))
+    c.setStrokeColor(LINE)
+    c.roundRect(M, y - 27 * mm, W - 2 * M, 20 * mm, 5 * mm, fill=1, stroke=1)
+    draw_paragraph(c, "<b>https://apneeattitude.github.io/AppSuiviAA/</b><br/>Ouvrez le menu en haut à droite pour choisir L1, L2, L3, L4, LC, DNF1, DNF2, STA1 ou STA2.",
+                   M + 7 * mm, y - 11 * mm, W - 2 * M - 14 * mm, link_style)
     c.save()
 
 
