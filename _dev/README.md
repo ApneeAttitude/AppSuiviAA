@@ -143,7 +143,9 @@ production : `https://apneeattitude.github.io/AppSuiviAA/?ligne=L2`. Le même
 paramètre ouvre L1, L2, L3, L4, LC, DNF1, DNF2, STA1 ou STA2 ; STAC demeure
 visible mais indisponible tant que sa ligne n'est pas créée. Les anciennes URL
 par ligne sont maintenues pendant la transition. La page `statistiques/` est
-la vue globale de production et n'est pas mentionnée dans le guide.
+la vue globale de production et n'est pas mentionnée dans le guide. Comme
+`index.html` est à la racine du site, elle charge la feuille commune avec le
+chemin `assets/appsuivi.css` (et non `../assets/...`).
 
 Depuis la version Apps Script PROD 61, le même contrôle est actif en
 production. Pour les lignes DNF et STA, les encadrants sont lus dans
