@@ -373,6 +373,6 @@ personne connectée. Elle limite l’accès aux adresses de
 fréquentation moyenne, séances tenues, moyenne par jour de la semaine et
 séances à compléter. Les noms des participants ne sont jamais retournés. En
 TEST, la vue lit les neuf classeurs PROD uniquement en lecture, car tous les
-classeurs n'ont pas de copie TEST. Le déploiement TEST correspondant est la version 56 (19/09/2026). Avant toute publication en PROD,
+classeurs n'ont pas de copie TEST. Le déploiement TEST correspondant est la version 57 (19/09/2026). Avant toute publication en PROD,
 créer une liste d’autorisation PROD contenant Frédéric et les responsables du
 club confirmés, sans confondre ce droit avec le rôle d’encadrant.
