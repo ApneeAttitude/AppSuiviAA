@@ -35,6 +35,22 @@
   .average { color: #0f5754; font-weight: 700; white-space: nowrap; }
   .number { text-align: right; }
   .notice { margin: 18px 0 0; color: #5b6470; font-size: 12px; }
+  .details { margin-top: 20px; }
+  .details > h2 { margin-bottom: 10px; }
+  details { margin: 8px 0; overflow: hidden; border: 1px solid rgba(15,110,106,.16); border-radius: 14px; background: #fff; }
+  summary { display: flex; align-items: center; gap: 8px; padding: 13px 14px; cursor: pointer; list-style: none; font-weight: 700; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: '⌄'; margin-left: auto; color: #0f5754; transition: transform .15s ease; }
+  details[open] summary::after { transform: rotate(180deg); }
+  .detail-meta { margin-left: auto; color: #0f5754; font-size: 12px; font-weight: 600; }
+  .detail-body { padding: 0 14px 14px; border-top: 1px solid rgba(22,32,43,.09); }
+  .detail-body h3 { margin: 15px 0 8px; font: 700 14px 'Space Grotesk', sans-serif; }
+  .weekday-row { display: grid; grid-template-columns: 80px 1fr 58px; gap: 8px; align-items: center; margin: 8px 0; font-size: 12px; }
+  .todo-list { margin: 0; padding: 0; list-style: none; }
+  .todo-list li { padding: 8px 0; border-bottom: 1px solid rgba(22,32,43,.09); font-size: 12px; }
+  .todo-list li:last-child { border-bottom: 0; }
+  .todo-list strong { color: #0f5754; }
+  .empty { color: #5b6470; font-size: 12px; }
   #message { margin: 18px 0; color: #fff; text-align: center; }
   @media (max-width: 600px) {
     header { padding: 18px; } h1 { font-size: 23px; } main { padding: 6px 12px 32px; }
@@ -42,6 +58,7 @@
     .row { grid-template-columns: 54px minmax(92px, 1fr) 55px; gap: 7px; padding: 12px 9px; font-size: 12px; }
     .row > :nth-child(4) { display: none; } .row-head > :nth-child(4) { display: none; }
     .bar-wrap { gap: 5px; } .average { font-size: 11px; } .number { font-size: 11px; }
+    .detail-meta { display: none; } .weekday-row { grid-template-columns: 72px 1fr 52px; }
   }
 </style>
 </head>
@@ -56,7 +73,8 @@
     <div id="summary" class="summary"></div>
     <h2>Comparaison des lignes</h2>
     <div id="comparison" class="comparison"></div>
-    <p class="notice">La page ne présente que des données agrégées par ligne.</p>
+    <section class="details"><h2>Détail des lignes</h2><div id="details"></div></section>
+    <p class="notice">La page ne présente que des données agrégées par ligne. Les données proviennent des classeurs de production, en lecture seule.</p>
   </section>
 </main>
 <script>
@@ -87,6 +105,26 @@ function render(data) {
     if (index === 0) { item.forEach(function (value) { var cell = document.createElement('span'); cell.textContent = value; row.appendChild(cell); }); }
     else { var name = document.createElement('span'); name.className = 'line-name'; name.textContent = item[0]; var chart = document.createElement('div'); chart.className = 'bar-wrap'; var track = document.createElement('div'); track.className = 'track'; var bar = document.createElement('div'); bar.className = 'bar'; bar.style.width = Math.round((item[1].moyenne / maximum) * 100) + '%'; track.appendChild(bar); var avg = document.createElement('span'); avg.className = 'average'; avg.textContent = formatAverage(item[1].moyenne); chart.appendChild(track); chart.appendChild(avg); row.appendChild(name); row.appendChild(chart); [item[2], item[3]].forEach(function (value) { var cell = document.createElement('span'); cell.className = 'number'; cell.textContent = value; row.appendChild(cell); }); }
     comparison.appendChild(row);
+  });
+  renderDetails(data.lignes);
+}
+function renderDetails(lines) {
+  var parent = document.getElementById('details'); parent.textContent = '';
+  var maximum = Math.max.apply(null, lines.reduce(function (all, line) { return all.concat(line.hebdomadaire || []); }, []).map(function (day) { return day.moyenne; })) || 1;
+  lines.forEach(function (line) {
+    var detail = document.createElement('details');
+    var summary = document.createElement('summary');
+    var title = document.createElement('span'); title.textContent = line.code;
+    var meta = document.createElement('span'); meta.className = 'detail-meta'; meta.textContent = formatAverage(line.moyenne) + ' · ' + line.seances + ' tenues · ' + line.a_completer + ' à compléter';
+    summary.appendChild(title); summary.appendChild(meta); detail.appendChild(summary);
+    var body = document.createElement('div'); body.className = 'detail-body';
+    var weekTitle = document.createElement('h3'); weekTitle.textContent = 'Moyenne par jour de la semaine'; body.appendChild(weekTitle);
+    if (!line.hebdomadaire || !line.hebdomadaire.length) { var emptyWeek = document.createElement('p'); emptyWeek.className = 'empty'; emptyWeek.textContent = 'Aucune séance tenue pour le moment.'; body.appendChild(emptyWeek); }
+    else line.hebdomadaire.forEach(function (day) { var row = document.createElement('div'); row.className = 'weekday-row'; var label = document.createElement('span'); label.textContent = day.libelle; var track = document.createElement('div'); track.className = 'track'; var bar = document.createElement('div'); bar.className = 'bar'; bar.style.width = Math.round((day.moyenne / maximum) * 100) + '%'; track.appendChild(bar); var value = document.createElement('span'); value.className = 'average'; value.textContent = formatAverage(day.moyenne); row.appendChild(label); row.appendChild(track); row.appendChild(value); body.appendChild(row); });
+    var todoTitle = document.createElement('h3'); todoTitle.textContent = 'Séances à compléter'; body.appendChild(todoTitle);
+    if (!line.seances_a_completer || !line.seances_a_completer.length) { var emptyTodo = document.createElement('p'); emptyTodo.className = 'empty'; emptyTodo.textContent = 'Aucune séance passée à compléter.'; body.appendChild(emptyTodo); }
+    else { var list = document.createElement('ul'); list.className = 'todo-list'; line.seances_a_completer.forEach(function (session) { var item = document.createElement('li'); var date = document.createElement('strong'); date.textContent = session.date; item.appendChild(date); item.appendChild(document.createTextNode(' · ' + session.encadrant)); list.appendChild(item); }); body.appendChild(list); }
+    detail.appendChild(body); parent.appendChild(detail);
   });
 }
 window.onload = function () { google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleCredentialResponse, auto_select: true }); google.accounts.id.renderButton(document.getElementById('g_id_signin'), { theme: 'filled_blue', size: 'large', width: 280 }); };

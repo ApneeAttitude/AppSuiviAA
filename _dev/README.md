@@ -370,7 +370,9 @@ La page TEST `_test/statistiques/` appelle l’action Apps Script `statsClub`.
 Cette action est une requête POST authentifiée par le jeton Google de la
 personne connectée. Elle limite l’accès aux adresses de
 `ACCES_STATS_GLOBALES_TEST` et ne retourne que des agrégats par ligne :
-fréquentation moyenne, séances tenues et séances à compléter. Les noms des
-participants ne sont jamais retournés. Le déploiement TEST correspondant est la version 56 (19/09/2026). Avant toute publication en PROD,
+fréquentation moyenne, séances tenues, moyenne par jour de la semaine et
+séances à compléter. Les noms des participants ne sont jamais retournés. En
+TEST, la vue lit les neuf classeurs PROD uniquement en lecture, car tous les
+classeurs n'ont pas de copie TEST. Le déploiement TEST correspondant est la version 56 (19/09/2026). Avant toute publication en PROD,
 créer une liste d’autorisation PROD contenant Frédéric et les responsables du
 club confirmés, sans confondre ce droit avec le rôle d’encadrant.

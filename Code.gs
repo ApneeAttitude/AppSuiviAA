@@ -67,7 +67,10 @@ var CACHE_TTL_FICHE = 60;
 // séparée des rôles d'encadrant : consulter les statistiques de toutes les
 // lignes n'est pas nécessaire pour renseigner une séance.
 var ACCES_STATS_GLOBALES_TEST = ['flebrigand@gmail.com'];
-var CIBLES_STATS_GLOBALES_TEST = ['TEST-L2', 'TEST-DNF1', 'TEST-DNF2', 'TEST-STA1', 'TEST-STA2'];
+// La page reste en TEST, mais compare les données réelles en lecture seule :
+// tous les classeurs n'ont pas de copie TEST. Aucun de ces classeurs n'est
+// modifié par le calcul.
+var CIBLES_STATS_GLOBALES_TEST = ['PROD-L1', 'PROD-L2', 'PROD-L3', 'PROD-L4', 'PROD-LC', 'PROD-DNF1', 'PROD-DNF2', 'PROD-STA1', 'PROD-STA2'];
 
 function ouvrirClasseur_(cible) {
   if (!cible) throw new Error('cible manquante (environnement/ligne)');
@@ -279,10 +282,12 @@ function getStatsClub_(body) {
     totalSeances += stats.seances || 0;
     totalACompleter += (stats.seances_a_completer || []).length;
     return {
-      code: cible.replace('TEST-', ''),
+      code: cible.replace(/^(TEST|PROD)-/, ''),
       moyenne: stats.moyenne,
       seances: stats.seances,
-      a_completer: (stats.seances_a_completer || []).length
+      a_completer: (stats.seances_a_completer || []).length,
+      hebdomadaire: stats.hebdomadaire || [],
+      seances_a_completer: stats.seances_a_completer || []
     };
   });
   var resultat = {
