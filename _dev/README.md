@@ -306,9 +306,12 @@ L'action Apps Script `stats` lit l'historique complet du `Calendrier` et de
 `Presences` d'une cible. Elle retient exclusivement les séances antérieures au
 jour courant, au statut `tenue`, et ayant au moins une présence. Elle renvoie
 la moyenne de participants depuis le début de saison, les moyennes mensuelles
-et celles par jour de semaine. Le cache est invalidé à chaque enregistrement
-de séance. Première livraison isolée sur `_test/L2/` avec le déploiement TEST
-version 54 du 19/09/2026 ; elle doit être validée avant généralisation.
+et celles par jour de semaine. Elle expose aussi les séances passées sans
+présence qui ne sont ni `tenue`, ni `annulée`, ni `fermée`, avec l'encadrant
+résolu dans le calendrier qui doit les renseigner. Le cache est invalidé à
+chaque enregistrement de séance. Première livraison isolée sur `_test/L2/`
+avec le déploiement TEST version 55 du 19/09/2026 ; elle doit être validée
+avant généralisation.
 
 ## Statuts de séance
 

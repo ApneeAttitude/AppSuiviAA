@@ -180,6 +180,7 @@ function getStats_(cible) {
   var calendrier = shCalendrier.getDataRange().getValues();
   var totalParticipants = 0;
   var totalSeances = 0;
+  var seancesACompleter = [];
   var mois = {};
   var jours = [
     { cle: 1, libelle: 'Lundi', participants: 0, seances: 0 },
@@ -197,7 +198,15 @@ function getStats_(cible) {
     var statut = String(row[8] || '').toLowerCase().trim();
     var estDate = Object.prototype.toString.call(date) === '[object Date]';
     var nbParticipants = presenceParSeance[String(idSeance)] || 0;
-    if (!idSeance || !estDate || date >= maintenant || statut !== 'tenue' || !nbParticipants) continue;
+    if (!idSeance || !estDate) continue;
+    var statutClos = statut === 'annulée' || statut === 'annulee' || statut === 'fermée' || statut === 'fermee';
+    if (date < maintenant && statut !== 'tenue' && !statutClos && !nbParticipants) {
+      seancesACompleter.push({
+        date: Utilities.formatDate(date, Session.getScriptTimeZone(), 'dd/MM/yyyy'),
+        encadrant: (String(row[16] || '') + ' ' + String(row[15] || '')).trim() || 'Encadrant non renseigné'
+      });
+    }
+    if (date >= maintenant || statut !== 'tenue' || !nbParticipants) continue;
 
     totalSeances++;
     totalParticipants += nbParticipants;
@@ -230,7 +239,8 @@ function getStats_(cible) {
     seances: totalSeances,
     moyenne: totalSeances ? Math.round((totalParticipants / totalSeances) * 10) / 10 : 0,
     mensuel: Object.keys(mois).sort().map(function (cleMois) { return avecMoyenne_(mois[cleMois]); }),
-    hebdomadaire: jours.filter(function (jour) { return jour.seances > 0; }).map(avecMoyenne_)
+    hebdomadaire: jours.filter(function (jour) { return jour.seances > 0; }).map(avecMoyenne_),
+    seances_a_completer: seancesACompleter.sort(function (a, b) { return a.date < b.date ? -1 : (a.date > b.date ? 1 : 0); })
   };
   cache.put(cle, JSON.stringify(resultat), CACHE_TTL_DONNEES);
   return resultat;
