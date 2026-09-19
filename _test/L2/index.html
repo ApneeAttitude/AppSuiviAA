@@ -417,7 +417,7 @@ function afficherStatistiques_(stats) {
   });
   var aCompleter = stats.seances_a_completer || [];
   var blocACompleter = document.createElement('section'); blocACompleter.className = 'stats-section';
-  var titreACompleter = document.createElement('h3'); titreACompleter.textContent = 'Séances à renseigner'; blocACompleter.appendChild(titreACompleter);
+  var titreACompleter = document.createElement('h3'); titreACompleter.textContent = 'Séances à compléter'; blocACompleter.appendChild(titreACompleter);
   if (!aCompleter.length) {
     var videACompleter = document.createElement('p'); videACompleter.className = 'stats-empty'; videACompleter.textContent = 'Aucune séance passée à compléter.'; blocACompleter.appendChild(videACompleter);
   } else {
