@@ -380,12 +380,12 @@ function ouvrirStatistiques_() {
     .catch(function (e) { contenu.textContent = 'Impossible de charger les statistiques : ' + e.message; });
 }
 function libelleMoyenne_(valeur) { return String(valeur).replace('.', ',') + ' pers.'; }
-function ajouterBarresStats_(parent, donnees) {
+function ajouterBarresStats_(parent, donnees, maximumCommun) {
   if (!donnees.length) {
     var vide = document.createElement('p'); vide.className = 'stats-empty';
     vide.textContent = 'Aucune séance prise en compte pour le moment.'; parent.appendChild(vide); return;
   }
-  var maximum = Math.max.apply(null, donnees.map(function (x) { return x.moyenne; })) || 1;
+  var maximum = maximumCommun || 1;
   donnees.forEach(function (item) {
     var ligne = document.createElement('div'); ligne.className = 'stats-row';
     var libelle = document.createElement('span'); libelle.textContent = item.libelle;
@@ -408,10 +408,12 @@ function afficherStatistiques_(stats) {
     carte.appendChild(nombre); carte.appendChild(libelle); synthese.appendChild(carte);
   });
   contenu.appendChild(synthese);
+  var toutesLesMoyennes = (stats.mensuel || []).concat(stats.hebdomadaire || []);
+  var maximumCommun = Math.max.apply(null, toutesLesMoyennes.map(function (x) { return x.moyenne; })) || 1;
   [['Évolution mensuelle', stats.mensuel], ['Moyenne par jour', stats.hebdomadaire]].forEach(function (section) {
     var bloc = document.createElement('section'); bloc.className = 'stats-section';
     var titre = document.createElement('h3'); titre.textContent = section[0]; bloc.appendChild(titre);
-    ajouterBarresStats_(bloc, section[1]); contenu.appendChild(bloc);
+    ajouterBarresStats_(bloc, section[1], maximumCommun); contenu.appendChild(bloc);
   });
   var aCompleter = stats.seances_a_completer || [];
   var blocACompleter = document.createElement('section'); blocACompleter.className = 'stats-section';
