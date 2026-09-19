@@ -109,6 +109,7 @@ function doPost(e) {
     // nous-mêmes depuis le corps texte brut.
     var body = JSON.parse(e.postData.contents);
     if (body.action === 'saveSeance') return jsonOut_(savePresences_(body));
+    if (body.action === 'statsLigne') return jsonOut_(getStatsLigne_(body));
     if (body.action === 'statsClub') return jsonOut_(getStatsClub_(body));
     return jsonOut_({ ok: false, error: 'action inconnue : ' + body.action });
   } catch (err) {
@@ -255,6 +256,29 @@ function getStats_(cible) {
   };
   cache.put(cle, JSON.stringify(resultat), CACHE_TTL_DONNEES);
   return resultat;
+}
+
+// Statistiques d'une ligne : le compte Google est relié à la personne du
+// référentiel central via son courriel (Personnes!F). L'accès est autorisé si
+// cette personne possède un rôle encadrant ou prépa encadrant actif sur la
+// ligne demandée. Les statistiques globales restent traitées séparément.
+function getStatsLigne_(body) {
+  if (body.environnement !== 'TEST') {
+    throw new Error('statistiques de ligne indisponibles pour cet environnement');
+  }
+  var email = verifierJeton_(body.idToken).toLowerCase();
+  var code = String(body.cible || '').replace(/^(TEST|PROD)-/, '');
+  var par = lireParametrage_();
+  var pid = Object.keys(par.personnes).filter(function (id) {
+    return String(par.personnes[id].email || '').toLowerCase() === email;
+  })[0];
+  var autorise = pid && par.inscriptions.some(function (inscription) {
+    return inscription.id === pid && par.estActive(inscription) &&
+      inscription.groupe === code &&
+      (inscription.role === 'encadrant' || inscription.role === 'prépa encadrant');
+  });
+  if (!autorise) throw new Error('accès réservé aux encadrants de cette ligne');
+  return getStats_(body.cible);
 }
 
 // La vue globale ne transmet que des agrégats par ligne. Les statistiques
@@ -864,7 +888,10 @@ function lireParametrage_() {
   for (var r = 4; r < vp.length; r++) {           // ligne 5 = première donnée
     var pid = vp[r][0];
     if (!pid) continue;
-    personnes[pid] = { id: pid, nom: vp[r][1], prenom: vp[r][2] };
+    personnes[pid] = {
+      id: pid, nom: vp[r][1], prenom: vp[r][2],
+      email: String(vp[r][5] || '').trim().toLowerCase()
+    };
     ordreClub.push(pid);
   }
 

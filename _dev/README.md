@@ -133,6 +133,14 @@ elles basculeront vers cette feuille lors de leur remplacement par l'URL
 unique. Toute nouvelle page AppSuiviAA doit charger cette feuille au lieu de
 créer une nouvelle palette locale.
 
+Depuis la version Apps Script TEST 59, les statistiques de ligne de la page
+unique sont demandées par `POST` avec le jeton Google. Le serveur lit le
+courriel associé à l'ID dans `AA - Parametrage 2026-2027` / `Personnes`,
+colonne F, puis autorise seulement un rôle actif `encadrant` ou `prépa
+encadrant` inscrit sur la ligne demandée. La liste des statistiques générales
+reste séparée et réservée à Frédéric ainsi qu'aux responsables explicitement
+configurés.
+
 ## PROD : un dossier Drive par ligne, avec accès dédié
 
 Chaque ligne a son propre classeur, dans son propre dossier Google Drive,

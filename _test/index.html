@@ -210,7 +210,10 @@ function ouvrirStatistiques_() {
   document.getElementById('statsRegle').textContent = '';
   contenu.textContent = 'Chargement des statistiques…';
   dialog.showModal();
-  fetch(WEB_APP_URL + '?action=stats&cible=' + encodeURIComponent(CIBLE), { cache: 'no-store' })
+  fetch(WEB_APP_URL, {
+    method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: 'statsLigne', environnement: 'TEST', cible: CIBLE, idToken: idToken })
+  })
     .then(function (r) { return r.json(); })
     .then(function (d) {
       if (!d.ok) throw new Error(d.error || 'statistiques indisponibles');
