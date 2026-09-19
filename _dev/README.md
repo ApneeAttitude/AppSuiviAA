@@ -371,6 +371,6 @@ Cette action est une requête POST authentifiée par le jeton Google de la
 personne connectée. Elle limite l’accès aux adresses de
 `ACCES_STATS_GLOBALES_TEST` et ne retourne que des agrégats par ligne :
 fréquentation moyenne, séances tenues et séances à compléter. Les noms des
-participants ne sont jamais retournés. Avant toute publication en PROD,
+participants ne sont jamais retournés. Le déploiement TEST correspondant est la version 56 (19/09/2026). Avant toute publication en PROD,
 créer une liste d’autorisation PROD contenant Frédéric et les responsables du
 club confirmés, sans confondre ce droit avec le rôle d’encadrant.
