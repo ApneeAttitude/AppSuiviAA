@@ -132,10 +132,9 @@ style embarqué afin de ne pas modifier leur apparence pendant la validation ;
 elles basculeront vers cette feuille lors de leur remplacement par l'URL
 unique. Toute nouvelle page AppSuiviAA doit charger cette feuille au lieu de
 créer une nouvelle palette locale. Le sélecteur de séance de la page unique
-n'utilise pas le rendu natif du navigateur : il affiche une carte sur deux
-lignes (date puis horaire/bassin) et ouvre une liste dédiée. Cela conserve un
-libellé lisible sur téléphone tout en rendant le choix d'une autre séance
-explicite.
+reste un sélecteur natif afin d'être fiable sur les téléphones ; sa carte et
+son chevron explicitent l'ouverture de la liste sans ajouter de comportement
+spécifique au navigateur.
 
 Depuis la version Apps Script TEST 59, les statistiques de ligne de la page
 unique sont demandées par `POST` avec le jeton Google. Le serveur lit le

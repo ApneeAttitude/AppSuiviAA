@@ -27,11 +27,8 @@
         <label for="seance">Séance</label>
         </div>
         <div class="session-picker">
-          <select id="seance" class="sr-only" aria-hidden="true" tabindex="-1"></select>
-          <button type="button" id="seanceOuvrir" class="seance-display" aria-haspopup="dialog" aria-label="Choisir une autre séance">
-            <span class="seance-detail"><strong id="seanceTitre">Séance à choisir</strong><span id="seanceSousTitre"></span></span>
-            <span class="seance-chevron" aria-hidden="true">⌄</span>
-          </button>
+          <select id="seance" aria-label="Choisir une séance"></select>
+          <span class="seance-select-indicator" aria-hidden="true">⌄</span>
           <div class="status-pill-wrap">
             <label for="statut" class="sr-only">Statut de la séance</label>
             <select id="statut" aria-label="Statut de la séance"></select>
@@ -85,12 +82,6 @@
   <a class="menu-link" href="statistiques/">Statistiques générales <small>Responsables</small></a>
   <p class="menu-section">Aide</p>
   <a class="menu-link" href="../guides/Guide-AppSuiviAA.pdf" target="_blank" rel="noopener">Guide d’utilisation</a>
-</dialog>
-
-<dialog id="seanceDialog" class="seance-dialog" aria-labelledby="seanceDialogTitre">
-  <div class="menu-heading"><h2 id="seanceDialogTitre">Choisir une séance</h2><button type="button" id="seanceFermer" class="menu-close" aria-label="Fermer">✕</button></div>
-  <p class="seance-dialog-aide">Choisissez une séance pour la renseigner ou la compléter.</p>
-  <div id="seancesListe" class="seances-list"></div>
 </dialog>
 
 <dialog id="statsDialog" class="stats-dialog" aria-labelledby="statsTitre">
@@ -314,44 +305,6 @@ function remplirSeances() {
   }
 }
 
-function bassinSeance_(s) {
-  var trouve = String(s && s.creneau || '').match(/bassin\s*\d+\s*m/i);
-  return trouve ? trouve[0].toLowerCase().replace(/^b/, 'B') : '';
-}
-function afficherResumeSeance_() {
-  var s = seanceCourante_();
-  document.getElementById('seanceTitre').textContent = s ?
-    (s.numero + ' . ' + s.jour + ' ' + s.date) : 'Séance à choisir';
-  var horaire = s && s.heure_debut && s.heure_fin ? s.heure_debut + ' - ' + s.heure_fin : '';
-  var bassin = bassinSeance_(s);
-  document.getElementById('seanceSousTitre').textContent = [horaire, bassin].filter(Boolean).join(' . ');
-}
-function renderListeSeances_() {
-  var liste = document.getElementById('seancesListe');
-  liste.replaceChildren();
-  seances.forEach(function (s) {
-    var bouton = document.createElement('button');
-    bouton.type = 'button';
-    bouton.className = 'seance-list-item' + (s.id === document.getElementById('seance').value ? ' is-current' : '');
-    var titre = document.createElement('strong'); titre.textContent = s.numero + ' . ' + s.jour + ' ' + s.date;
-    var sousTitre = document.createElement('span');
-    sousTitre.textContent = [s.heure_debut && s.heure_fin ? s.heure_debut + ' - ' + s.heure_fin : '', bassinSeance_(s)].filter(Boolean).join(' . ');
-    bouton.append(titre, sousTitre);
-    bouton.onclick = function () {
-      document.getElementById('seance').value = s.id;
-      ouvrirSeance();
-      document.getElementById('seanceDialog').close();
-    };
-    liste.appendChild(bouton);
-  });
-}
-document.getElementById('seanceOuvrir').addEventListener('click', function () {
-  renderListeSeances_();
-  document.getElementById('seanceDialog').showModal();
-});
-document.getElementById('seanceFermer').addEventListener('click', function () { document.getElementById('seanceDialog').close(); });
-document.getElementById('seanceDialog').addEventListener('close', function () { document.getElementById('seanceOuvrir').focus(); });
-
 // TEST-L2 : remplacement en brouillon, enregistré avec la séance uniquement.
 var remplacementId = '';
 var remplacementInitialId = '';
@@ -566,7 +519,6 @@ document.querySelectorAll('.plan-toolbar button').forEach(function (btn) {
 function ouvrirSeance() {
   presents = {};
   presentsOrder = [];
-  afficherResumeSeance_();
   render();
   afficherStatutSeance();
   initialiserRemplacement_();

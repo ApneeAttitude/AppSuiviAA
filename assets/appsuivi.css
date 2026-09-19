@@ -34,15 +34,11 @@ main { max-width: 480px; margin: 0 auto; padding: 20px 16px 92px; }
 .seance-heading { margin: 0; color: var(--aa-muted); font-size: 14px; }
 .seance-heading > label { display: block; margin: 0 0 4px; color: var(--aa-muted); font-size: 14px; }
 .session-picker { position: relative; }
-.seance-display { display: flex; align-items: center; width: 100%; min-height: 82px; padding: 13px 132px 13px 16px; border: 1px solid var(--aa-border); border-radius: 16px; color: var(--aa-text); background: var(--aa-surface); font: inherit; text-align: left; cursor: pointer; }
-.seance-display:hover { border-color: #79bdd9; background: #fbfdfe; }
-.seance-detail { display: grid; gap: 3px; min-width: 0; }
-.seance-detail strong { overflow: hidden; font-size: 16px; font-weight: 600; line-height: 1.22; text-overflow: ellipsis; white-space: nowrap; }
-.seance-detail span { color: var(--aa-muted); font-size: 14px; line-height: 1.22; }
-.seance-chevron { position: absolute; top: 50%; right: 16px; transform: translateY(-50%); color: var(--aa-blue); font-size: 22px; font-weight: 700; }
+select, input[type=text], .plan-editor, .present-item textarea.observation { width: 100%; color: var(--aa-text); background: var(--aa-surface); border: 1px solid var(--aa-border); border-radius: 16px; font: inherit; }
+#seance { min-height: 60px; padding: 10px 170px 10px 15px; font-size: 15px; font-weight: 600; appearance: none; cursor: pointer; }
+.seance-select-indicator { position: absolute; top: 50%; right: 15px; transform: translateY(-55%); color: var(--aa-blue); font-size: 22px; font-weight: 700; pointer-events: none; }
 .status-pill-wrap { position: absolute; z-index: 1; top: 50%; right: 42px; transform: translateY(-50%); }
 .status-pill-wrap::after { content: "⌄"; position: absolute; top: 50%; right: 12px; transform: translateY(-56%); pointer-events: none; font-weight: 700; }
-select, input[type=text], .plan-editor, .present-item textarea.observation { width: 100%; color: var(--aa-text); background: var(--aa-surface); border: 1px solid var(--aa-border); border-radius: 16px; font: inherit; }
 #statut { width: auto; min-height: 38px; max-width: 115px; padding: 7px 28px 7px 12px; border-radius: 999px; font-size: 13px; font-weight: 600; line-height: 1; appearance: none; cursor: pointer; }
 #statut.status-planifiee { color: #075985; background: #e5f4fa; border-color: #8dcde4; }
 #statut.status-tenue { color: #075985; background: #e5f4fa; border-color: #8dcde4; }
@@ -90,7 +86,7 @@ select, input[type=text], .plan-editor, .present-item textarea.observation { wid
 /* Fenêtres */
 dialog { border: 0; color: var(--aa-text); background: #f7fbfd; box-shadow: 0 18px 44px rgba(3,25,40,.28); }
 dialog::backdrop { background: rgba(3,20,34,.64); }
-.menu-dialog, .replacement-dialog, .stats-dialog, .seance-dialog { width: min(480px, calc(100% - 28px)); max-height: 85dvh; padding: 22px; overflow-y: auto; border-radius: 24px; }
+.menu-dialog, .replacement-dialog, .stats-dialog { width: min(480px, calc(100% - 28px)); max-height: 85dvh; padding: 22px; overflow-y: auto; border-radius: 24px; }
 .menu-dialog { margin: 0 14px 0 auto; }
 .menu-heading { justify-content: space-between; }
 .menu-heading h2, .replacement-dialog h2, .stats-heading h2 { margin: 0; font: 700 21px "Space Grotesk", sans-serif; }
@@ -101,12 +97,6 @@ dialog::backdrop { background: rgba(3,20,34,.64); }
 .menu-line small, .menu-link small { margin-left: auto; color: #5f7b8d; font-size: 12px; font-weight: 400; }
 .menu-line:disabled { color: #718694; cursor: default; }
 .menu-line:disabled small { color: #8398a5; }
-.seance-dialog-aide { margin: 15px 0 10px; color: var(--aa-muted); font-size: 13px; }
-.seances-list { display: grid; gap: 8px; }
-.seance-list-item { display: grid; gap: 3px; width: 100%; padding: 13px 14px; border: 1px solid var(--aa-border); border-radius: 12px; color: var(--aa-text); background: #fff; font: inherit; text-align: left; cursor: pointer; }
-.seance-list-item strong { font-size: 15px; font-weight: 600; }
-.seance-list-item span { color: var(--aa-muted); font-size: 13px; }
-.seance-list-item.is-current { border-color: #72bddb; background: #eaf6fa; }
 .replacement-dialog label { display: block; margin-top: 14px; color: var(--aa-muted); }
 .replacement-dialog input { min-height: 48px; padding: 10px 12px; }
 .replacement-dialog button { min-height: 44px; padding: 8px 12px; border: 1px solid var(--aa-blue); border-radius: 8px; color: var(--aa-blue-dark); background: #fff; font: inherit; cursor: pointer; }
@@ -131,5 +121,5 @@ dialog::backdrop { background: rgba(3,20,34,.64); }
   header .titre { font-size: 21px; }
   main { padding: 22px 24px 96px; }
   .fixed-bar { padding-right: 24px; padding-left: 24px; }
-  .menu-dialog, .replacement-dialog, .stats-dialog, .seance-dialog { width: 100%; max-height: 85dvh; margin: auto 0 0; padding-bottom: max(22px, env(safe-area-inset-bottom)); border-radius: 25px 25px 0 0; }
+  .menu-dialog, .replacement-dialog, .stats-dialog { width: 100%; max-height: 85dvh; margin: auto 0 0; padding-bottom: max(22px, env(safe-area-inset-bottom)); border-radius: 25px 25px 0 0; }
 }
