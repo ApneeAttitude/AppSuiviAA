@@ -110,6 +110,20 @@ pages sont toutes hébergées sur le même domaine GitHub Pages, l'origine
 JavaScript autorisée est la même quel que soit le chemin (`/dev/L2/`,
 `/L1/`, ...) — pas besoin d'ajouter une origine par palier ou par ligne.
 
+### Page unique TEST
+
+Depuis le 19/09/2026, `_test/index.html` constitue la première version de
+l'application à URL unique. Le choix d'une ligne se fait avec le paramètre
+`?ligne=L2`, `?ligne=DNF1`, `?ligne=DNF2`, `?ligne=STA1` ou `?ligne=STA2` ;
+l'absence de paramètre ouvre L2. La page ne référence que les cibles TEST
+isolées correspondantes. Elle ne doit pas être étendue à une cible `PROD-*`
+pour des essais. Après connexion, elle affiche la séance du jour, sinon la
+prochaine séance. Le menu hamburger ouvre la sélection de ligne, les
+statistiques de la ligne, les statistiques générales et le guide. La palette
+retenue est **Océan profond**. Les anciennes pages `_test/L2/`, `_test/DNF1/`,
+etc. restent disponibles pendant la validation ; leurs redirections vers la
+page unique seront ajoutées après test fonctionnel.
+
 ## PROD : un dossier Drive par ligne, avec accès dédié
 
 Chaque ligne a son propre classeur, dans son propre dossier Google Drive,
