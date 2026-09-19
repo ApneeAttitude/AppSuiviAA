@@ -190,7 +190,8 @@ function lirePersonnes_(ss) {
     var roles = Object.keys(p.roles);
     return {
       id: p.id, nom: p.nom, prenom: p.prenom, membre: p.membre, role: p.role,
-      roles: roles, est_encadrant: roles.indexOf('encadrant') !== -1
+      roles: roles,
+      est_encadrant: roles.indexOf('encadrant') !== -1 || roles.indexOf('prépa encadrant') !== -1
     };
   });
 }
@@ -972,6 +973,48 @@ function synchroniserEffectifsLignesSeancesProd() {
   });
   Logger.log(JSON.stringify(resultats, null, 2));
   return resultats;
+}
+
+// Migration ponctuelle du référentiel central : le rôle « prépa encadrant »
+// est proposé dans Inscriptions et remplace le rôle encadrant pour les trois
+// personnes désignées. Le serveur traite ce rôle comme un encadrant pour les
+// remplacements et les listes associées.
+function preparerRolesPrepaEncadrant() {
+  var ssp = SpreadsheetApp.openById(ID_PARAMETRAGE);
+  var listes = ssp.getSheetByName(SHEET_LISTES);
+  var inscriptions = ssp.getSheetByName('Inscriptions');
+  if (!listes || !inscriptions) throw new Error('onglet Listes ou Inscriptions introuvable');
+
+  listes.getRange('E8').setValue('prépa encadrant');
+  var premiereLigne = 5;
+  var n = inscriptions.getMaxRows() - premiereLigne + 1;
+  var validation = SpreadsheetApp.newDataValidation()
+    .requireValueInList(['élève', 'encadrant', 'prépa encadrant'], true)
+    .setAllowInvalid(false)
+    .build();
+  inscriptions.getRange(premiereLigne, 7, n, 1).setDataValidation(validation);
+
+  var cibles = {
+    'P013|L4': 'Francis Wang',
+    'P052|L2': 'Corinne Le Brigand',
+    'P069|L3': 'Magali Cavatore'
+  };
+  var valeurs = inscriptions.getRange(premiereLigne, 3, n, 5).getValues();
+  var lignes = {};
+  valeurs.forEach(function (r, i) {
+    var cle = String(r[0] || '') + '|' + String(r[3] || '');
+    if (cibles[cle] && (r[4] === 'encadrant' || r[4] === 'prépa encadrant')) {
+      lignes[cle] = premiereLigne + i;
+    }
+  });
+  var manquantes = Object.keys(cibles).filter(function (cle) { return !lignes[cle]; });
+  if (manquantes.length) throw new Error('inscription encadrant introuvable : ' + manquantes.join(', '));
+  Object.keys(lignes).forEach(function (cle) {
+    inscriptions.getRange(lignes[cle], 7).setValue('prépa encadrant');
+  });
+  var resultat = { role: 'prépa encadrant', personnes: Object.keys(cibles).map(function (cle) { return cibles[cle]; }) };
+  Logger.log(JSON.stringify(resultat, null, 2));
+  return resultat;
 }
 
 // --- Migration ponctuelle : mise en page de l'onglet Listes + colonne ----

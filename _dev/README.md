@@ -271,7 +271,11 @@ de vérité pour la structure et les données des classeurs. À chaque
 
 Le classeur `AA - Parametrage 2026-2027` est la source de référence des rôles
 par ligne : l'onglet `Inscriptions` porte le couple personne, ligne et rôle
-(`élève` ou `encadrant`). La fonction Apps Script `synchroniserEffectifs`
+(`élève`, `encadrant` ou `prépa encadrant`). Le rôle `prépa encadrant` est
+traité exactement comme `encadrant` par l'application, notamment pour les
+remplacements. La migration ponctuelle `preparerRolesPrepaEncadrant` ajoute ce
+choix au référentiel et l'a attribué le 19/09/2026 à Francis Wang, Corinne Le
+Brigand et Magali Cavatore, sans retirer leur rôle `élève`. La fonction Apps Script `synchroniserEffectifs`
 reporte les inscriptions actives dans l'onglet `Personnes` de chaque classeur
 de ligne, avec une ligne par couple personne/rôle et les groupes associés à ce
 rôle. Les personnes sans inscription active restent présentes dans le
@@ -291,8 +295,10 @@ de vérifier chaque classeur de test isolément. Après validation, la fonction
 `synchroniserEffectifsLignesSeancesProd` synchronise uniquement ces quatre
 lignes en production, sans modifier L1 à LC. La version 50 du déploiement
 Apps Script TEST puis PROD a été validée ainsi : chaque classeur expose les
-25 encadrants actifs du club dans la liste des remplaçants. STAC rejoindra
-cette synchronisation lors de la création de son classeur et de ses cibles.
+25 encadrants actifs du club dans la liste des remplaçants. Le 19/09/2026,
+la version 51 a été validée en TEST puis promue en PROD pour le rôle `prépa
+encadrant` ; la synchronisation complète a contrôlé les neuf classeurs. STAC
+rejoindra cette synchronisation lors de la création de son classeur et de ses cibles.
 
 ## Statuts de séance
 
