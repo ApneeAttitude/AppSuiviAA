@@ -38,14 +38,14 @@
   .comparison-tools { display: flex; justify-content: flex-end; margin: -2px 0 8px; }
   .comparison-tools button { border: 1px solid rgba(15,110,106,.25); border-radius: 999px; padding: 7px 11px; color: #0f5754; background: #fff; font: 600 12px Manrope, sans-serif; cursor: pointer; }
   .line-detail { margin: 0; overflow: hidden; border: 0; border-radius: 0; background: #fff; }
-  .line-detail summary { display: grid; grid-template-columns: 74px minmax(120px, 1fr) 100px 82px; gap: 12px; align-items: center; padding: 13px 14px; cursor: pointer; list-style: none; border-bottom: 1px solid rgba(22,32,43,.09); }
+  .line-detail summary { position: relative; display: grid; grid-template-columns: 74px minmax(120px, 1fr) 100px 82px; gap: 12px; align-items: center; padding: 13px 38px 13px 14px; cursor: pointer; list-style: none; border-bottom: 1px solid rgba(22,32,43,.09); }
   .line-detail summary::-webkit-details-marker { display: none; }
+  .line-detail summary::after { content: '›'; position: absolute; right: 14px; top: 50%; color: #0f5754; font-size: 20px; line-height: 1; transform: translateY(-50%); transition: transform .15s ease; }
+  .line-detail[open] summary::after { transform: translateY(-50%) rotate(90deg); }
   .line-detail summary:hover { background: #f7fbfa; }
-  .line-name { display: flex; align-items: center; gap: 6px; }
-  .line-arrow { display: inline-block; color: #0f5754; transition: transform .15s ease; }
-  .line-detail[open] .line-arrow { transform: rotate(90deg); }
+  .line-name { display: flex; align-items: center; }
   .line-detail.unavailable summary { cursor: default; color: #5b6470; }
-  .line-detail.unavailable .line-arrow { visibility: hidden; }
+  .line-detail.unavailable summary::after { visibility: hidden; }
   .detail-body { padding: 0 14px 14px; border-top: 1px solid rgba(22,32,43,.09); }
   .detail-body h3 { margin: 15px 0 8px; font: 700 14px 'Space Grotesk', sans-serif; }
   .weekday-row { display: grid; grid-template-columns: 80px 1fr 58px; gap: 8px; align-items: center; margin: 8px 0; font-size: 12px; }
@@ -116,7 +116,7 @@ function render(data) {
 function createLineDetail(line, maxAverage, maxWeekday) {
   var detail = document.createElement('details'); detail.className = 'line-detail' + (line.indisponible ? ' unavailable' : '');
   var summary = document.createElement('summary');
-  var name = document.createElement('span'); name.className = 'line-name'; var arrow = document.createElement('span'); arrow.className = 'line-arrow'; arrow.textContent = '›'; name.appendChild(arrow); name.appendChild(document.createTextNode(line.code));
+  var name = document.createElement('span'); name.className = 'line-name'; name.textContent = line.code;
   var chart = document.createElement('div'); chart.className = 'bar-wrap';
   if (line.indisponible) { chart.textContent = 'À configurer'; }
   else { var track = document.createElement('div'); track.className = 'track'; var bar = document.createElement('div'); bar.className = 'bar'; bar.style.width = Math.round((line.moyenne / maxAverage) * 100) + '%'; track.appendChild(bar); var avg = document.createElement('span'); avg.className = 'average'; avg.textContent = formatAverage(line.moyenne); chart.appendChild(track); chart.appendChild(avg); }
