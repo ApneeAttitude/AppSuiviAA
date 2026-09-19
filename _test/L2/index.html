@@ -210,9 +210,9 @@
   .stats-heading h2 { margin: 0; font-size: 19px; }
   .stats-close { width: 36px; height: 36px; border: 0; border-radius: 50%; background: rgba(15,110,106,.12); color: #0f5754; font: inherit; font-size: 18px; cursor: pointer; }
   .stats-rule { margin: 6px 0 14px; font-size: 12px; color: #54636c; }
-  .stats-summary { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .stats-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
   .stats-kpi { padding: 12px; border-radius: 12px; background: #fff; border: 1px solid rgba(15,110,106,.16); }
-  .stats-kpi strong { display: block; color: #0f6e6a; font: 700 25px 'Space Grotesk', sans-serif; }
+  .stats-kpi strong { display: block; color: #0f6e6a; font: 700 22px 'Space Grotesk', sans-serif; white-space: nowrap; }
   .stats-kpi span { font-size: 12px; color: #5b6470; }
   .stats-section { margin-top: 20px; }
   .stats-section h3 { margin: 0 0 9px; font-size: 15px; }
@@ -225,7 +225,7 @@
   .stats-todo li { padding: 9px 0; border-bottom: 1px solid rgba(22,32,43,.1); font-size: 13px; }
   .stats-todo li:last-child { border-bottom: 0; }
   .stats-todo strong { color: #0f5754; }
-  @media (max-width: 600px) { .stats-dialog { width: 100%; max-height: 85dvh; margin: auto 0 0; border-radius: 20px 20px 0 0; padding-bottom: max(20px, env(safe-area-inset-bottom)); } }
+  @media (max-width: 600px) { .stats-dialog { width: 100%; max-height: 85dvh; margin: auto 0 0; border-radius: 20px 20px 0 0; padding-bottom: max(20px, env(safe-area-inset-bottom)); } .stats-summary { gap: 7px; } .stats-kpi { padding: 10px 8px; } .stats-kpi strong { font-size: 17px; } .stats-kpi span { font-size: 11px; } }
 </style>
 </head>
 <body>
@@ -401,7 +401,7 @@ function afficherStatistiques_(stats) {
   contenu.textContent = '';
   document.getElementById('statsRegle').textContent = stats.regle + '.';
   var synthese = document.createElement('div'); synthese.className = 'stats-summary';
-  [['Moyenne', libelleMoyenne_(stats.moyenne)], ['Séances', String(stats.seances) + ' tenues'], ['À compléter', String((stats.seances_a_completer || []).length) + ' séance(s)']].forEach(function (item) {
+  [['Moyenne par séance', libelleMoyenne_(stats.moyenne)], ['Tenues', String(stats.seances) + ' séances'], ['À compléter', String((stats.seances_a_completer || []).length) + ' séances']].forEach(function (item) {
     var carte = document.createElement('div'); carte.className = 'stats-kpi';
     var nombre = document.createElement('strong'); nombre.textContent = item[1];
     var libelle = document.createElement('span'); libelle.textContent = item[0];
