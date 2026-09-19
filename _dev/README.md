@@ -126,6 +126,13 @@ pages `_test/L2/`, `_test/DNF1/`, etc. restent disponibles pendant la
 validation ; leurs redirections vers la page unique seront ajoutées après test
 fonctionnel.
 
+La feuille de style commune est `assets/appsuivi.css` (19/09/2026). La page
+unique TEST la charge directement. Les anciennes pages conservent encore leur
+style embarqué afin de ne pas modifier leur apparence pendant la validation ;
+elles basculeront vers cette feuille lors de leur remplacement par l'URL
+unique. Toute nouvelle page AppSuiviAA doit charger cette feuille au lieu de
+créer une nouvelle palette locale.
+
 ## PROD : un dossier Drive par ligne, avec accès dédié
 
 Chaque ligne a son propre classeur, dans son propre dossier Google Drive,
