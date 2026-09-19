@@ -364,3 +364,13 @@ et une validation explicite.
   traiter avant toute diffusion plus large (vérifier côté script que
   l'email de l'encadrant a bien un rôle actif dans la ligne demandée,
   via l'onglet Personnes du classeur ciblé).
+## Vue globale des statistiques
+
+La page TEST `_test/statistiques/` appelle l’action Apps Script `statsClub`.
+Cette action est une requête POST authentifiée par le jeton Google de la
+personne connectée. Elle limite l’accès aux adresses de
+`ACCES_STATS_GLOBALES_TEST` et ne retourne que des agrégats par ligne :
+fréquentation moyenne, séances tenues et séances à compléter. Les noms des
+participants ne sont jamais retournés. Avant toute publication en PROD,
+créer une liste d’autorisation PROD contenant Frédéric et les responsables du
+club confirmés, sans confondre ce droit avec le rôle d’encadrant.

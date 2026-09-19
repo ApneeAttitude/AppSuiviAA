@@ -63,6 +63,12 @@ var SHEET_LISTES = 'Listes';
 var CACHE_TTL_DONNEES = 120;
 var CACHE_TTL_FICHE = 60;
 
+// Vue de synthèse réservée aux responsables. La liste est volontairement
+// séparée des rôles d'encadrant : consulter les statistiques de toutes les
+// lignes n'est pas nécessaire pour renseigner une séance.
+var ACCES_STATS_GLOBALES_TEST = ['flebrigand@gmail.com'];
+var CIBLES_STATS_GLOBALES_TEST = ['TEST-L2', 'TEST-DNF1', 'TEST-DNF2', 'TEST-STA1', 'TEST-STA2'];
+
 function ouvrirClasseur_(cible) {
   if (!cible) throw new Error('cible manquante (environnement/ligne)');
   var id = CLASSEURS[cible];
@@ -100,6 +106,7 @@ function doPost(e) {
     // nous-mêmes depuis le corps texte brut.
     var body = JSON.parse(e.postData.contents);
     if (body.action === 'saveSeance') return jsonOut_(savePresences_(body));
+    if (body.action === 'statsClub') return jsonOut_(getStatsClub_(body));
     return jsonOut_({ ok: false, error: 'action inconnue : ' + body.action });
   } catch (err) {
     return jsonOut_({ ok: false, error: String(err) });
@@ -237,10 +244,54 @@ function getStats_(cible) {
     ok: true,
     regle: 'Séances passées, tenues et avec au moins une présence',
     seances: totalSeances,
+    participants: totalParticipants,
     moyenne: totalSeances ? Math.round((totalParticipants / totalSeances) * 10) / 10 : 0,
     mensuel: Object.keys(mois).sort().map(function (cleMois) { return avecMoyenne_(mois[cleMois]); }),
     hebdomadaire: jours.filter(function (jour) { return jour.seances > 0; }).map(avecMoyenne_),
     seances_a_completer: seancesACompleter.sort(function (a, b) { return a.date < b.date ? -1 : (a.date > b.date ? 1 : 0); })
+  };
+  cache.put(cle, JSON.stringify(resultat), CACHE_TTL_DONNEES);
+  return resultat;
+}
+
+// La vue globale ne transmet que des agrégats par ligne. Les statistiques
+// individuelles et les noms des participants restent dans leur classeur.
+function getStatsClub_(body) {
+  if (body.environnement !== 'TEST') {
+    throw new Error('vue globale indisponible pour cet environnement');
+  }
+  var email = verifierJeton_(body.idToken).toLowerCase();
+  if (ACCES_STATS_GLOBALES_TEST.indexOf(email) === -1) {
+    throw new Error('accès réservé à Frédéric et aux responsables du club');
+  }
+
+  var cache = CacheService.getScriptCache();
+  var cle = 'v1|stats-club|TEST';
+  var brut = cache.get(cle);
+  if (brut) return JSON.parse(brut);
+
+  var totalParticipants = 0;
+  var totalSeances = 0;
+  var totalACompleter = 0;
+  var lignes = CIBLES_STATS_GLOBALES_TEST.map(function (cible) {
+    var stats = getStats_(cible);
+    totalParticipants += stats.participants || 0;
+    totalSeances += stats.seances || 0;
+    totalACompleter += (stats.seances_a_completer || []).length;
+    return {
+      code: cible.replace('TEST-', ''),
+      moyenne: stats.moyenne,
+      seances: stats.seances,
+      a_completer: (stats.seances_a_completer || []).length
+    };
+  });
+  var resultat = {
+    ok: true,
+    regle: 'Séances passées, tenues et avec au moins une présence',
+    moyenne: totalSeances ? Math.round((totalParticipants / totalSeances) * 10) / 10 : 0,
+    seances: totalSeances,
+    a_completer: totalACompleter,
+    lignes: lignes
   };
   cache.put(cle, JSON.stringify(resultat), CACHE_TTL_DONNEES);
   return resultat;
