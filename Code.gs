@@ -269,7 +269,7 @@ function getStatsClub_(body) {
   }
 
   var cache = CacheService.getScriptCache();
-  var cle = 'v1|stats-club|TEST';
+  var cle = 'v2|stats-club|TEST';
   var brut = cache.get(cle);
   if (brut) return JSON.parse(brut);
 
@@ -296,7 +296,8 @@ function getStatsClub_(body) {
     moyenne: totalSeances ? Math.round((totalParticipants / totalSeances) * 10) / 10 : 0,
     seances: totalSeances,
     a_completer: totalACompleter,
-    lignes: lignes
+    lignes: lignes,
+    lignes_attente: ['STAC']
   };
   cache.put(cle, JSON.stringify(resultat), CACHE_TTL_DONNEES);
   return resultat;

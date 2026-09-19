@@ -35,14 +35,17 @@
   .average { color: #0f5754; font-weight: 700; white-space: nowrap; }
   .number { text-align: right; }
   .notice { margin: 18px 0 0; color: #5b6470; font-size: 12px; }
-  .details { margin-top: 20px; }
-  .details > h2 { margin-bottom: 10px; }
-  details { margin: 8px 0; overflow: hidden; border: 1px solid rgba(15,110,106,.16); border-radius: 14px; background: #fff; }
-  summary { display: flex; align-items: center; gap: 8px; padding: 13px 14px; cursor: pointer; list-style: none; font-weight: 700; }
-  summary::-webkit-details-marker { display: none; }
-  summary::after { content: '⌄'; margin-left: auto; color: #0f5754; transition: transform .15s ease; }
-  details[open] summary::after { transform: rotate(180deg); }
-  .detail-meta { margin-left: auto; color: #0f5754; font-size: 12px; font-weight: 600; }
+  .comparison-tools { display: flex; justify-content: flex-end; margin: -2px 0 8px; }
+  .comparison-tools button { border: 1px solid rgba(15,110,106,.25); border-radius: 999px; padding: 7px 11px; color: #0f5754; background: #fff; font: 600 12px Manrope, sans-serif; cursor: pointer; }
+  .line-detail { margin: 0; overflow: hidden; border: 0; border-radius: 0; background: #fff; }
+  .line-detail summary { display: grid; grid-template-columns: 74px minmax(120px, 1fr) 100px 82px; gap: 12px; align-items: center; padding: 13px 14px; cursor: pointer; list-style: none; border-bottom: 1px solid rgba(22,32,43,.09); }
+  .line-detail summary::-webkit-details-marker { display: none; }
+  .line-detail summary:hover { background: #f7fbfa; }
+  .line-name { display: flex; align-items: center; gap: 6px; }
+  .line-arrow { display: inline-block; color: #0f5754; transition: transform .15s ease; }
+  .line-detail[open] .line-arrow { transform: rotate(90deg); }
+  .line-detail.unavailable summary { cursor: default; color: #5b6470; }
+  .line-detail.unavailable .line-arrow { visibility: hidden; }
   .detail-body { padding: 0 14px 14px; border-top: 1px solid rgba(22,32,43,.09); }
   .detail-body h3 { margin: 15px 0 8px; font: 700 14px 'Space Grotesk', sans-serif; }
   .weekday-row { display: grid; grid-template-columns: 80px 1fr 58px; gap: 8px; align-items: center; margin: 8px 0; font-size: 12px; }
@@ -58,7 +61,7 @@
     .row { grid-template-columns: 54px minmax(92px, 1fr) 55px; gap: 7px; padding: 12px 9px; font-size: 12px; }
     .row > :nth-child(4) { display: none; } .row-head > :nth-child(4) { display: none; }
     .bar-wrap { gap: 5px; } .average { font-size: 11px; } .number { font-size: 11px; }
-    .detail-meta { display: none; } .weekday-row { grid-template-columns: 72px 1fr 52px; }
+    .line-detail summary { grid-template-columns: 54px minmax(92px, 1fr) 55px; gap: 7px; padding: 12px 9px; font-size: 12px; } .line-detail summary > :nth-child(4) { display: none; } .weekday-row { grid-template-columns: 72px 1fr 52px; }
   }
 </style>
 </head>
@@ -72,8 +75,8 @@
     <p class="intro" id="rule"></p>
     <div id="summary" class="summary"></div>
     <h2>Comparaison des lignes</h2>
+    <div class="comparison-tools"><button id="toggleAll" type="button">Tout déplier</button></div>
     <div id="comparison" class="comparison"></div>
-    <section class="details"><h2>Détail des lignes</h2><div id="details"></div></section>
     <p class="notice">La page ne présente que des données agrégées par ligne. Les données proviennent des classeurs de production, en lecture seule.</p>
   </section>
 </main>
@@ -98,34 +101,37 @@ function render(data) {
   [[formatAverage(data.moyenne), 'Moyenne par séance'], [String(data.seances) + ' séances', 'Tenues'], [String(data.a_completer) + ' séances', 'À compléter']].forEach(function (item) {
     var card = document.createElement('div'); card.className = 'kpi'; var value = document.createElement('strong'); value.textContent = item[0]; var label = document.createElement('span'); label.textContent = item[1]; card.appendChild(value); card.appendChild(label); summary.appendChild(card);
   });
-  var maximum = Math.max.apply(null, data.lignes.map(function (line) { return line.moyenne; })) || 1;
+  var lines = (data.lignes || []).concat((data.lignes_attente || []).map(function (code) { return { code: code, indisponible: true }; }));
+  var maxAverage = Math.max.apply(null, lines.filter(function (line) { return !line.indisponible; }).map(function (line) { return line.moyenne; })) || 1;
+  var maxWeekday = Math.max.apply(null, lines.reduce(function (all, line) { return all.concat(line.hebdomadaire || []); }, []).map(function (day) { return day.moyenne; })) || 1;
   var comparison = document.getElementById('comparison'); comparison.textContent = '';
-  [['Ligne', 'Fréquentation', 'Tenues', 'À compléter']].concat(data.lignes.map(function (line) { return [line.code, line, line.seances + '', line.a_completer + '']; })).forEach(function (item, index) {
-    var row = document.createElement('div'); row.className = 'row' + (index === 0 ? ' row-head' : '');
-    if (index === 0) { item.forEach(function (value) { var cell = document.createElement('span'); cell.textContent = value; row.appendChild(cell); }); }
-    else { var name = document.createElement('span'); name.className = 'line-name'; name.textContent = item[0]; var chart = document.createElement('div'); chart.className = 'bar-wrap'; var track = document.createElement('div'); track.className = 'track'; var bar = document.createElement('div'); bar.className = 'bar'; bar.style.width = Math.round((item[1].moyenne / maximum) * 100) + '%'; track.appendChild(bar); var avg = document.createElement('span'); avg.className = 'average'; avg.textContent = formatAverage(item[1].moyenne); chart.appendChild(track); chart.appendChild(avg); row.appendChild(name); row.appendChild(chart); [item[2], item[3]].forEach(function (value) { var cell = document.createElement('span'); cell.className = 'number'; cell.textContent = value; row.appendChild(cell); }); }
-    comparison.appendChild(row);
-  });
-  renderDetails(data.lignes);
+  var head = document.createElement('div'); head.className = 'row row-head'; ['Ligne', 'Fréquentation', 'Tenues', 'À compléter'].forEach(function (value) { var cell = document.createElement('span'); cell.textContent = value; head.appendChild(cell); }); comparison.appendChild(head);
+  lines.forEach(function (line) { comparison.appendChild(createLineDetail(line, maxAverage, maxWeekday)); });
+  var toggle = document.getElementById('toggleAll');
+  function refreshToggle() { toggle.textContent = comparison.querySelectorAll('details.line-detail:not([open]):not(.unavailable)').length ? 'Tout déplier' : 'Tout replier'; }
+  toggle.onclick = function () { var open = toggle.textContent === 'Tout replier'; comparison.querySelectorAll('details.line-detail:not(.unavailable)').forEach(function (detail) { detail.open = !open; }); refreshToggle(); };
+  comparison.querySelectorAll('details.line-detail:not(.unavailable)').forEach(function (detail) { detail.addEventListener('toggle', refreshToggle); });
+  refreshToggle();
 }
-function renderDetails(lines) {
-  var parent = document.getElementById('details'); parent.textContent = '';
-  var maximum = Math.max.apply(null, lines.reduce(function (all, line) { return all.concat(line.hebdomadaire || []); }, []).map(function (day) { return day.moyenne; })) || 1;
-  lines.forEach(function (line) {
-    var detail = document.createElement('details');
-    var summary = document.createElement('summary');
-    var title = document.createElement('span'); title.textContent = line.code;
-    var meta = document.createElement('span'); meta.className = 'detail-meta'; meta.textContent = formatAverage(line.moyenne) + ' · ' + line.seances + ' tenues · ' + line.a_completer + ' à compléter';
-    summary.appendChild(title); summary.appendChild(meta); detail.appendChild(summary);
-    var body = document.createElement('div'); body.className = 'detail-body';
-    var weekTitle = document.createElement('h3'); weekTitle.textContent = 'Moyenne par jour de la semaine'; body.appendChild(weekTitle);
-    if (!line.hebdomadaire || !line.hebdomadaire.length) { var emptyWeek = document.createElement('p'); emptyWeek.className = 'empty'; emptyWeek.textContent = 'Aucune séance tenue pour le moment.'; body.appendChild(emptyWeek); }
-    else line.hebdomadaire.forEach(function (day) { var row = document.createElement('div'); row.className = 'weekday-row'; var label = document.createElement('span'); label.textContent = day.libelle; var track = document.createElement('div'); track.className = 'track'; var bar = document.createElement('div'); bar.className = 'bar'; bar.style.width = Math.round((day.moyenne / maximum) * 100) + '%'; track.appendChild(bar); var value = document.createElement('span'); value.className = 'average'; value.textContent = formatAverage(day.moyenne); row.appendChild(label); row.appendChild(track); row.appendChild(value); body.appendChild(row); });
-    var todoTitle = document.createElement('h3'); todoTitle.textContent = 'Séances à compléter'; body.appendChild(todoTitle);
-    if (!line.seances_a_completer || !line.seances_a_completer.length) { var emptyTodo = document.createElement('p'); emptyTodo.className = 'empty'; emptyTodo.textContent = 'Aucune séance passée à compléter.'; body.appendChild(emptyTodo); }
-    else { var list = document.createElement('ul'); list.className = 'todo-list'; line.seances_a_completer.forEach(function (session) { var item = document.createElement('li'); var date = document.createElement('strong'); date.textContent = session.date; item.appendChild(date); item.appendChild(document.createTextNode(' · ' + session.encadrant)); list.appendChild(item); }); body.appendChild(list); }
-    detail.appendChild(body); parent.appendChild(detail);
-  });
+function createLineDetail(line, maxAverage, maxWeekday) {
+  var detail = document.createElement('details'); detail.className = 'line-detail' + (line.indisponible ? ' unavailable' : '');
+  var summary = document.createElement('summary');
+  var name = document.createElement('span'); name.className = 'line-name'; var arrow = document.createElement('span'); arrow.className = 'line-arrow'; arrow.textContent = '›'; name.appendChild(arrow); name.appendChild(document.createTextNode(line.code));
+  var chart = document.createElement('div'); chart.className = 'bar-wrap';
+  if (line.indisponible) { chart.textContent = 'À configurer'; }
+  else { var track = document.createElement('div'); track.className = 'track'; var bar = document.createElement('div'); bar.className = 'bar'; bar.style.width = Math.round((line.moyenne / maxAverage) * 100) + '%'; track.appendChild(bar); var avg = document.createElement('span'); avg.className = 'average'; avg.textContent = formatAverage(line.moyenne); chart.appendChild(track); chart.appendChild(avg); }
+  var held = document.createElement('span'); held.className = 'number'; held.textContent = line.indisponible ? '—' : line.seances;
+  var pending = document.createElement('span'); pending.className = 'number'; pending.textContent = line.indisponible ? '—' : line.a_completer;
+  summary.appendChild(name); summary.appendChild(chart); summary.appendChild(held); summary.appendChild(pending); detail.appendChild(summary);
+  if (line.indisponible) return detail;
+  var body = document.createElement('div'); body.className = 'detail-body';
+  var weekTitle = document.createElement('h3'); weekTitle.textContent = 'Moyenne par jour de la semaine'; body.appendChild(weekTitle);
+  if (!line.hebdomadaire || !line.hebdomadaire.length) { var emptyWeek = document.createElement('p'); emptyWeek.className = 'empty'; emptyWeek.textContent = 'Aucune séance tenue pour le moment.'; body.appendChild(emptyWeek); }
+  else line.hebdomadaire.forEach(function (day) { var row = document.createElement('div'); row.className = 'weekday-row'; var label = document.createElement('span'); label.textContent = day.libelle; var track = document.createElement('div'); track.className = 'track'; var bar = document.createElement('div'); bar.className = 'bar'; bar.style.width = Math.round((day.moyenne / maxWeekday) * 100) + '%'; track.appendChild(bar); var value = document.createElement('span'); value.className = 'average'; value.textContent = formatAverage(day.moyenne); row.appendChild(label); row.appendChild(track); row.appendChild(value); body.appendChild(row); });
+  var todoTitle = document.createElement('h3'); todoTitle.textContent = 'Séances à compléter'; body.appendChild(todoTitle);
+  if (!line.seances_a_completer || !line.seances_a_completer.length) { var emptyTodo = document.createElement('p'); emptyTodo.className = 'empty'; emptyTodo.textContent = 'Aucune séance passée à compléter.'; body.appendChild(emptyTodo); }
+  else { var list = document.createElement('ul'); list.className = 'todo-list'; line.seances_a_completer.forEach(function (session) { var item = document.createElement('li'); var date = document.createElement('strong'); date.textContent = session.date; item.appendChild(date); item.appendChild(document.createTextNode(' · ' + session.encadrant)); list.appendChild(item); }); body.appendChild(list); }
+  detail.appendChild(body); return detail;
 }
 window.onload = function () { google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleCredentialResponse, auto_select: true }); google.accounts.id.renderButton(document.getElementById('g_id_signin'), { theme: 'filled_blue', size: 'large', width: 280 }); };
 </script>
