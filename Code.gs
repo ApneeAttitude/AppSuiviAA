@@ -114,6 +114,7 @@ function doPost(e) {
     if (body.action === 'saveSeance') return jsonOut_(savePresences_(body));
     if (body.action === 'statsLigne') return jsonOut_(getStatsLigne_(body));
     if (body.action === 'statsClub') return jsonOut_(getStatsClub_(body));
+    if (body.action === 'autorisations') return jsonOut_(getAutorisations_(body));
     return jsonOut_({ ok: false, error: 'action inconnue : ' + body.action });
   } catch (err) {
     return jsonOut_({ ok: false, error: (err && err.message) || String(err) });
@@ -261,6 +262,26 @@ function getStats_(cible) {
   return resultat;
 }
 
+// Vérifie si `email` a un rôle encadrant actif sur la ligne `code`, par
+// inscription (Inscriptions) ou par affectation de créneau
+// (Creneaux_Affectations, lignes de séances DNF/STA). Extrait de
+// getStatsLigne_ le 20/09/2026 pour être réutilisé par getAutorisations_
+// (masquage du menu) sans dupliquer la logique.
+function autoriseStatsLigne_(par, email, code) {
+  var pid = Object.keys(par.personnes).filter(function (id) {
+    return String(par.personnes[id].email || '').toLowerCase() === email;
+  })[0];
+  var autoriseInscription = pid && par.inscriptions.some(function (inscription) {
+    return inscription.id === pid && par.estActive(inscription) &&
+      inscription.groupe === code &&
+      (inscription.role === 'encadrant' || inscription.role === 'prépa encadrant');
+  });
+  var autoriseAffectation = pid && (par.encadrements || []).some(function (encadrement) {
+    return encadrement.id === pid && encadrement.ligne === code;
+  });
+  return autoriseInscription || autoriseAffectation;
+}
+
 // Statistiques d'une ligne : le compte Google est relié à la personne du
 // référentiel central via son courriel (Personnes!F). L'accès est autorisé si
 // cette personne possède un rôle encadrant ou prépa encadrant actif sur la
@@ -277,20 +298,32 @@ function getStatsLigne_(body) {
   var email = verifierJeton_(body.idToken).toLowerCase();
   var code = cible.replace(/^(TEST|PROD)-/, '');
   var par = lireParametrage_();
-  var pid = Object.keys(par.personnes).filter(function (id) {
-    return String(par.personnes[id].email || '').toLowerCase() === email;
-  })[0];
-  var autoriseInscription = pid && par.inscriptions.some(function (inscription) {
-    return inscription.id === pid && par.estActive(inscription) &&
-      inscription.groupe === code &&
-      (inscription.role === 'encadrant' || inscription.role === 'prépa encadrant');
-  });
-  var autoriseAffectation = pid && (par.encadrements || []).some(function (encadrement) {
-    return encadrement.id === pid && encadrement.ligne === code;
-  });
-  var autorise = autoriseInscription || autoriseAffectation;
-  if (!autorise) throw new Error('accès réservé aux encadrants de cette ligne');
+  if (!autoriseStatsLigne_(par, email, code)) throw new Error('accès réservé aux encadrants de cette ligne');
   return getStats_(body.cible);
+}
+
+// Droits d'accès aux statistiques (ligne courante + générales), sans calculer
+// les statistiques elles-mêmes : sert au front à masquer les entrées du menu
+// auxquelles le compte connecté n'a pas droit, plutôt que de les afficher
+// puis de signaler un refus (demande de Fred, 20/09/2026).
+function getAutorisations_(body) {
+  var environnement = String(body.environnement || '');
+  if (environnement !== 'TEST' && environnement !== 'PROD') {
+    throw new Error('autorisations indisponibles pour cet environnement');
+  }
+  var cible = String(body.cible || '');
+  if (cible.indexOf(environnement + '-') !== 0) {
+    throw new Error('cible incompatible avec cet environnement');
+  }
+  var email = verifierJeton_(body.idToken).toLowerCase();
+  var code = cible.replace(/^(TEST|PROD)-/, '');
+  var par = lireParametrage_();
+  var autorisesGlobales = environnement === 'PROD' ? ACCES_STATS_GLOBALES_PROD : ACCES_STATS_GLOBALES_TEST;
+  return {
+    ok: true,
+    statsLigne: autoriseStatsLigne_(par, email, code),
+    statsGenerales: autorisesGlobales.indexOf(email) !== -1
+  };
 }
 
 // La vue globale ne transmet que des agrégats par ligne. Les statistiques

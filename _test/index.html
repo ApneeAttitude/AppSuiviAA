@@ -79,9 +79,9 @@
   <div class="menu-heading"><h2 id="menuTitre">Menu</h2><button type="button" id="menuFermer" class="menu-close" aria-label="Fermer le menu">✕</button></div>
   <p class="menu-section">Mes séances</p>
   <div id="menuLignes"></div>
-  <p class="menu-section">Suivi</p>
-  <button type="button" id="menuStatsLigne" class="menu-link">Statistiques de la ligne</button>
-  <a class="menu-link" href="statistiques/">Statistiques générales <small>Responsables</small></a>
+  <p id="menuSuiviSection" class="menu-section" hidden>Suivi</p>
+  <button type="button" id="menuStatsLigne" class="menu-link" hidden>Statistiques de la ligne</button>
+  <a id="menuStatsGenerales" class="menu-link" href="statistiques/" hidden>Statistiques générales <small>Responsables</small></a>
   <p class="menu-section">Aide</p>
   <a class="menu-link" href="../guides/Guide-AppSuiviAA.pdf" target="_blank" rel="noopener">Guide d’utilisation</a>
 </dialog>
@@ -193,6 +193,26 @@ function appliquerLigne_(code) {
   document.getElementById('suggestions').textContent = '';
   renderMenuLignes_();
   chargerDonnees();
+  chargerAutorisations_();
+}
+// Droits d'accès aux statistiques (ligne courante + générales) : vérifiés au
+// serveur à chaque changement de ligne, pour masquer les entrées du menu
+// plutôt que les afficher puis signaler un refus (demande du 20/09/2026).
+// Masquées par défaut (attribut hidden posé dans le HTML) tant que la
+// réponse n'est pas arrivée.
+function appliquerAutorisations_(autorisations) {
+  document.getElementById('menuStatsLigne').hidden = !autorisations.statsLigne;
+  document.getElementById('menuStatsGenerales').hidden = !autorisations.statsGenerales;
+  document.getElementById('menuSuiviSection').hidden = !autorisations.statsLigne && !autorisations.statsGenerales;
+}
+function chargerAutorisations_() {
+  fetch(WEB_APP_URL, {
+    method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: 'autorisations', environnement: 'TEST', cible: CIBLE, idToken: idToken })
+  })
+    .then(function (r) { return r.json(); })
+    .then(function (d) { if (d.ok) appliquerAutorisations_(d); })
+    .catch(function () { /* Menu reste masqué par défaut en cas d'échec. */ });
 }
 function chargerDonnees() {
   fetch(WEB_APP_URL + '?action=data&cible=' + encodeURIComponent(CIBLE), { cache: 'no-store' })
