@@ -205,7 +205,7 @@ function chargerDonnees() {
       statutsSeance = d.listesStatutsSeance || [];
       remplirSeances();
     })
-    .catch(function (e) { afficherMessage('Erreur de chargement : ' + e, true); });
+    .catch(function () { afficherMessage('Erreur de chargement. Réessayez.', true); });
 }
 
 function ouvrirStatistiques_() {
@@ -220,10 +220,10 @@ function ouvrirStatistiques_() {
   })
     .then(function (r) { return r.json(); })
     .then(function (d) {
-      if (!d.ok) throw new Error(d.error || 'statistiques indisponibles');
+      if (!d.ok) { contenu.textContent = d.error || 'Statistiques indisponibles.'; return; }
       afficherStatistiques_(d);
     })
-    .catch(function (e) { contenu.textContent = 'Impossible de charger les statistiques : ' + e.message; });
+    .catch(function () { contenu.textContent = 'Impossible de charger les statistiques. Réessayez.'; });
 }
 function libelleMoyenne_(valeur) { return String(valeur).replace('.', ',') + ' pers.'; }
 function ajouterBarresStats_(parent, donnees, maximumCommun) {

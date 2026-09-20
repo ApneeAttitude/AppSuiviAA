@@ -100,7 +100,7 @@ function doGet(e) {
     }
     return jsonOut_({ ok: false, error: 'action inconnue : ' + action });
   } catch (err) {
-    return jsonOut_({ ok: false, error: String(err) });
+    return jsonOut_({ ok: false, error: (err && err.message) || String(err) });
   }
 }
 
@@ -116,7 +116,7 @@ function doPost(e) {
     if (body.action === 'statsClub') return jsonOut_(getStatsClub_(body));
     return jsonOut_({ ok: false, error: 'action inconnue : ' + body.action });
   } catch (err) {
-    return jsonOut_({ ok: false, error: String(err) });
+    return jsonOut_({ ok: false, error: (err && err.message) || String(err) });
   }
 }
 
@@ -303,7 +303,7 @@ function getStatsClub_(body) {
   var email = verifierJeton_(body.idToken).toLowerCase();
   var autorises = environnement === 'PROD' ? ACCES_STATS_GLOBALES_PROD : ACCES_STATS_GLOBALES_TEST;
   if (autorises.indexOf(email) === -1) {
-    throw new Error('accès réservé à Frédéric et aux responsables du club');
+    throw new Error('accès réservé aux responsables du club');
   }
 
   var cache = CacheService.getScriptCache();

@@ -69,7 +69,7 @@
 <div class="bg"></div>
 <header><span class="eyebrow">Suivi des présences</span><h1>🧪 Statistiques du club</h1></header>
 <main>
-  <section id="signin" class="card"><p>Cette vue est réservée à Frédéric et aux responsables du club.</p><div id="g_id_signin"></div></section>
+  <section id="signin" class="card"><p>Cette vue est réservée aux responsables du club.</p><div id="g_id_signin"></div></section>
   <div id="message" role="alert"></div>
   <section id="app" class="card">
     <p class="intro" id="rule"></p>
@@ -89,8 +89,8 @@ function handleCredentialResponse(response) {
   showMessage('Chargement des statistiques…');
   fetch(WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'statsClub', environnement: 'TEST', idToken: response.credential }) })
     .then(function (r) { return r.json(); })
-    .then(function (data) { if (!data.ok) throw new Error(data.error || 'accès indisponible'); render(data); })
-    .catch(function (error) { showMessage(error.message || 'Impossible de charger les statistiques.'); });
+    .then(function (data) { if (!data.ok) { showMessage(data.error || 'Accès indisponible.'); return; } render(data); })
+    .catch(function () { showMessage('Impossible de charger les statistiques. Réessayez.'); });
 }
 function render(data) {
   document.getElementById('message').textContent = '';

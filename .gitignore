@@ -19,3 +19,6 @@ generateurs/personnes.json
 
 # artefacts de debug/inspection
 *.inspect.ndjson
+
+# préférences Claude Code locales (permissions personnelles)
+.claude/settings.local.json
