@@ -37,6 +37,9 @@ main { max-width: 480px; margin: 0 auto; padding: 20px 16px 92px; }
 select, input[type=text], .plan-editor, .present-item textarea.observation { width: 100%; color: var(--aa-text); background: var(--aa-surface); border: 1px solid var(--aa-border); border-radius: 16px; font: inherit; }
 #seance { min-height: 60px; padding: 10px 170px 10px 15px; font-size: 15px; font-weight: 600; appearance: none; cursor: pointer; }
 .seance-select-indicator { position: absolute; top: 50%; right: 15px; transform: translateY(-55%); color: var(--aa-blue); font-size: 22px; font-weight: 700; pointer-events: none; }
+.session-picker--separate-status #seance { padding-right: 46px; font-size: 14px; }
+.status-row { display: flex; align-items: center; justify-content: space-between; min-height: 38px; color: var(--aa-muted); font-size: 13px; }
+.status-row .status-pill-wrap { position: relative; top: auto; right: auto; transform: none; }
 .status-pill-wrap { position: absolute; z-index: 1; top: 50%; right: 42px; transform: translateY(-50%); }
 .status-pill-wrap::after { content: "⌄"; position: absolute; top: 50%; right: 12px; transform: translateY(-56%); pointer-events: none; font-weight: 700; }
 #statut { width: auto; min-height: 38px; max-width: 115px; padding: 7px 28px 7px 12px; border-radius: 999px; font-size: 13px; font-weight: 600; line-height: 1; appearance: none; cursor: pointer; }

@@ -26,9 +26,12 @@
         <div class="seance-heading">
         <label for="seance">Séance</label>
         </div>
-        <div class="session-picker">
+        <div class="session-picker session-picker--separate-status">
           <select id="seance" aria-label="Choisir une séance"></select>
           <span class="seance-select-indicator" aria-hidden="true">⌄</span>
+        </div>
+        <div class="status-row">
+          <span>Statut de la séance</span>
           <div class="status-pill-wrap">
             <label for="statut" class="sr-only">Statut de la séance</label>
             <select id="statut" aria-label="Statut de la séance"></select>
@@ -287,8 +290,10 @@ function remplirSeances() {
   seances.forEach(function (s) {
     var opt = document.createElement('option');
     opt.value = s.id;
-    var horaire = (s.heure_debut && s.heure_fin) ? (s.heure_debut + ' - ' + s.heure_fin) : '';
-    opt.textContent = s.numero + ' . ' + s.jour + ' ' + s.date + (horaire ? ' . ' + horaire : '');
+    var horaire = (s.heure_debut && s.heure_fin) ? (s.heure_debut + '–' + s.heure_fin) : '';
+    var jourCourt = ({ lundi: 'lun.', mardi: 'mar.', mercredi: 'mer.', jeudi: 'jeu.', vendredi: 'ven.', samedi: 'sam.', dimanche: 'dim.' })[String(s.jour || '').toLowerCase()] || s.jour;
+    var dateCourte = String(s.date || '').replace(/\/\d{4}$/, '');
+    opt.textContent = s.numero + ' · ' + jourCourt + ' ' + dateCourte + (horaire ? ' · ' + horaire : '');
     sel.appendChild(opt);
   });
   sel.onchange = ouvrirSeance;
