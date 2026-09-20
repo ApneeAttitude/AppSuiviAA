@@ -1171,6 +1171,22 @@ function synchroniserEffectifsTestSta2() {
   return resultat;
 }
 
+// Synchronise uniquement le classeur TEST-STAC. L'appartenance de cette
+// ligne nominative est matérialisée dans la colonne « Membre de la ligne ».
+function synchroniserEffectifsTestStac() {
+  var par = lireParametrage_();
+  var resultat = synchroniserPersonnesLigne_(par, 'STAC', 'TEST-STAC');
+  var sh = ouvrirClasseur_('TEST-STAC').getSheetByName(SHEET_PERSONNES);
+  var premiereLigne = 5;
+  var nombreLignes = sh.getLastRow() - premiereLigne + 1;
+  if (nombreLignes > 0) {
+    sh.getRange(premiereLigne, 8, nombreLignes, 1)
+      .setFormulaR1C1('=IF(REGEXMATCH(RC[-2], "(^| / )STAC( / |$)"), "oui", "")');
+  }
+  Logger.log(JSON.stringify(resultat, null, 2));
+  return resultat;
+}
+
 // Synchronise uniquement les lignes de séances déjà livrées en production.
 // Cette entrée évite de relancer les autres lignes lorsque le besoin porte
 // exclusivement sur la disponibilité des remplaçants DNF/STA.
