@@ -90,7 +90,7 @@ def main():
 
     header(c, "Renseigner les présences", "Le guide rapide pour une saisie simple et fiable, depuis un téléphone ou un ordinateur.", 1)
     y = H - 69 * mm
-    y = numbered_step(c, y, 1, "Ouvrez AppSuiviAA", "Utilisez le lien unique du club : apneeattitude.github.io/AppSuiviAA/. Le menu permet de choisir votre ligne.")
+    y = numbered_step(c, y, 1, "Ouvrez AppSuiviAA", "Utilisez le lien unique du club : <link href='https://apneeattitude.github.io/AppSuiviAA/' color='#087aa8'><u>https://apneeattitude.github.io/AppSuiviAA/</u></link>. Le menu permet de choisir votre ligne.")
     y = numbered_step(c, y, 2, "Connectez-vous avec votre compte Google du club", "En cas de refus de connexion, contactez Fred.")
     y = numbered_step(c, y, 3, "Choisissez la séance", "Utilisez la liste déroulante en haut de page. La séance du jour est souvent déjà sélectionnée.")
     y = numbered_step(c, y, 4, "Ajoutez les participants", "Tapez les premières lettres du prénom ou du nom, puis touchez Ajouter.")
@@ -119,7 +119,7 @@ def main():
     c.setFillColor(colors.HexColor("#e8f5f6"))
     c.setStrokeColor(LINE)
     c.roundRect(M, y - 27 * mm, W - 2 * M, 20 * mm, 5 * mm, fill=1, stroke=1)
-    draw_paragraph(c, "<b>https://apneeattitude.github.io/AppSuiviAA/</b><br/>Ouvrez le menu en haut à droite pour choisir L1, L2, L3, L4, LC, DNF1, DNF2, STA1 ou STA2.",
+    draw_paragraph(c, "<b><link href='https://apneeattitude.github.io/AppSuiviAA/' color='#087aa8'><u>https://apneeattitude.github.io/AppSuiviAA/</u></link></b><br/>Ouvrez le menu en haut à droite pour choisir L1, L2, L3, L4, LC, DNF1, DNF2, STA1, STA2 ou STAC.",
                    M + 7 * mm, y - 11 * mm, W - 2 * M - 14 * mm, link_style)
     c.save()
 
