@@ -141,8 +141,7 @@ spécifique au navigateur.
 
 Après validation du parcours TEST, `index.html` fournit l'URL unique de
 production : `https://apneeattitude.github.io/AppSuiviAA/?ligne=L2`. Le même
-paramètre ouvre L1, L2, L3, L4, LC, DNF1, DNF2, STA1 ou STA2 ; STAC demeure
-visible mais indisponible en production tant que sa ligne n'est pas créée. Les anciennes URL
+paramètre ouvre L1, L2, L3, L4, LC, DNF1, DNF2, STA1, STA2 ou STAC. Les anciennes URL
 par ligne sont maintenues pendant la transition. La page `statistiques/` est
 la vue globale de production et n'est pas mentionnée dans le guide. Comme
 `index.html` est à la racine du site, elle charge la feuille commune avec le
@@ -349,8 +348,8 @@ Apps Script TEST puis PROD a été validée ainsi : chaque classeur expose les
 25 encadrants actifs du club dans la liste des remplaçants. Le 19/09/2026,
 la version 51 a été validée en TEST puis promue en PROD pour le rôle `prépa
 encadrant` ; la synchronisation complète a contrôlé les neuf classeurs. STAC
-dispose d'une synchronisation TEST ciblée depuis le 20/09/2026 ; elle sera
-ajoutée à la synchronisation de production seulement lors de sa livraison.
+dispose d'une synchronisation TEST ciblée depuis le 20/09/2026 et d'une
+synchronisation PROD ciblée depuis sa livraison le même jour.
 
 ## Statistiques de fréquentation
 
