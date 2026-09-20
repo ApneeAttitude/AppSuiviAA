@@ -26,12 +26,11 @@
         <div class="seance-heading">
         <label for="seance">Séance</label>
         </div>
-        <div class="session-picker session-picker--separate-status">
-          <select id="seance" aria-label="Choisir une séance"></select>
-          <span class="seance-select-indicator" aria-hidden="true">⌄</span>
-        </div>
-        <div class="status-row">
-          <span>Statut de la séance</span>
+        <div class="session-row">
+          <div class="session-picker session-picker--separate-status">
+            <select id="seance" aria-label="Choisir une séance"></select>
+            <span class="seance-select-indicator" aria-hidden="true">⌄</span>
+          </div>
           <div class="status-pill-wrap">
             <label for="statut" class="sr-only">Statut de la séance</label>
             <select id="statut" aria-label="Statut de la séance"></select>
@@ -121,14 +120,14 @@ var GOOGLE_CLIENT_ID = "490347116418-0outack1od53036gfeca2enatbopogfm.apps.googl
 var CIBLE = "TEST-L2";
 var LIGNES_TEST = {
   'L1':   { libelle: 'Débutants', disponible: false },
-  'L2':   { cible: 'TEST-L2', libelle: 'Intermédiaire', disponible: true },
+  'L2':   { cible: 'TEST-L2', libelle: 'Intermédiaires', disponible: true },
   'L3':   { libelle: 'Confirmés', disponible: false },
   'L4':   { libelle: 'Avancés', disponible: false },
-  'LC':   { libelle: 'Ligne compétition', disponible: false },
-  'DNF1': { cible: 'TEST-DNF1', libelle: 'Apnée dynamique sans palme', disponible: true },
-  'DNF2': { cible: 'TEST-DNF2', libelle: 'Apnée dynamique sans palme', disponible: true },
-  'STA1': { cible: 'TEST-STA1', libelle: 'Apnée statique', disponible: true },
-  'STA2': { cible: 'TEST-STA2', libelle: 'Apnée statique', disponible: true },
+  'LC':   { libelle: 'Compétition', disponible: false },
+  'DNF1': { cible: 'TEST-DNF1', libelle: 'Apnée dynamique sans palme débutants', disponible: true },
+  'DNF2': { cible: 'TEST-DNF2', libelle: 'Apnée dynamique sans palme confirmés', disponible: true },
+  'STA1': { cible: 'TEST-STA1', libelle: 'Apnée statique débutants', disponible: true },
+  'STA2': { cible: 'TEST-STA2', libelle: 'Apnée statique confirmés', disponible: true },
   'STAC':  { cible: 'TEST-STAC', libelle: 'Apnée statique compétition', disponible: true }
 };
 var ligneCourante = 'L2';
