@@ -32,6 +32,7 @@ var CLASSEURS = {
   'TEST-DNF2': '1E3OoYTEWQ07Ykmbydwkf08Hns1e1YVR1ofOThezeZ94',
   'TEST-STA1': '1QGzitEk7jM7undte_y_EmaQYhsK_faKcFHTyni9folo',
   'TEST-STA2': '1PwMAxWjeOEE8Qpe0DRNLrVwv-KqmHZMlsTqFKloqBPg',
+  'TEST-STAC': '1f_GCjmqkDh_iXm88UErpGrmoYI0SLu8SzDT9t_UEXUE',
   'PROD-DNF1': '1kc_G0xQx2SjPIHWUdGB_tt_HKN4cZQUWsFMAPttX21g',
   'PROD-DNF2': '1X8E-TMjNh2nvH71MLeJ2DJrzwUvun0eNsD0lTMtqa_c',
   'PROD-STA1': '1J5rI7VnXsQ2ixXgjEvzamtFdys2NrwjcUAgWxzInA3c',
@@ -876,7 +877,7 @@ var ID_PARAMETRAGE = '18vMX5fqFgCN7NrSkPsSr1ftVoonPFC5xEbjf73iM8Lw';
 // CLASSEURS (PROD-*) ci-dessus. Chaque classeur reçoit aussi les encadrants
 // des autres lignes : ils sont ainsi disponibles comme remplaçants.
 // STAC sera ajoutée lors de la création de son classeur et de ses cibles.
-var LIGNES_SYNC = ['L1', 'L2', 'L3', 'L4', 'LC', 'DNF1', 'DNF2', 'STA1', 'STA2'];
+var LIGNES_SYNC = ['L1', 'L2', 'L3', 'L4', 'LC', 'DNF1', 'DNF2', 'STA1', 'STA2', 'STAC'];
 
 // ---------------------------------------------------------- lecture Parametrage
 // Lit tout ce qu'il faut du classeur de Paramétrage : le référentiel des
