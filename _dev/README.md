@@ -132,7 +132,20 @@ unique TEST la charge directement. Les anciennes pages conservent encore leur
 style embarqué afin de ne pas modifier leur apparence pendant la validation ;
 elles basculeront vers cette feuille lors de leur remplacement par l'URL
 unique. Toute nouvelle page AppSuiviAA doit charger cette feuille au lieu de
-créer une nouvelle palette locale. Le sélecteur de séance de la page unique
+créer une nouvelle palette locale.
+
+**Attention, `assets/appsuivi.css` est déjà partagé par `_test/index.html` ET
+`index.html` (PROD)**, qui utilisent en grande partie les mêmes classes —
+modifier une règle de base dans ce fichier change donc PROD immédiatement,
+sans passer par une validation TEST (incident constaté le 20/09/2026 : trois
+chantiers visuels validés sur TEST s'étaient appliqués à PROD sans que Fred
+les ait vus). Pour une évolution visuelle qui ne doit s'appliquer qu'en TEST
+tant qu'elle n'est pas validée : `_test/index.html` porte `<body
+class="env-test">` ; préfixer la règle CSS correspondante par `body.env-test
+…` (plus spécifique, elle l'emporte sur la règle de base partagée) plutôt que
+de modifier directement cette dernière. Une fois Fred a validé sur TEST,
+promouvoir vers PROD en répercutant la même règle sans le préfixe (et en
+retirant la version scopée si elle n'a plus d'utilité ailleurs). Le sélecteur de séance de la page unique
 reste un sélecteur natif afin d'être fiable sur les téléphones ; sa carte et
 son chevron explicitent l'ouverture de la liste sans ajouter de comportement
 spécifique au navigateur.

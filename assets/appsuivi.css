@@ -52,6 +52,7 @@ select, input[type=text], .plan-editor, .present-item textarea.observation { wid
 .encadrant-info { flex: 1; min-width: 0; margin: 0; color: var(--aa-muted); font-size: 14px; }
 .encadrant-info strong { display: block; color: var(--aa-text); font-size: 17px; font-weight: 500; }
 .encadrant-info::before { content: "♙"; float: left; margin: 1px 10px 0 0; color: var(--aa-text); font-size: 20px; }
+body.env-test .encadrant-info::before { display: none; }
 .encadrant-role { display: block; color: var(--aa-muted); font-size: 14px; }
 .replacement-button { display: inline-flex; align-items: center; gap: 6px; min-height: 42px; padding: 7px 13px; border: 0; border-radius: 999px; color: #fff; background: var(--aa-blue); font: 500 14px Manrope, sans-serif; cursor: pointer; }
 .replacement-button-icon { font-size: 18px; }
@@ -90,15 +91,20 @@ select, input[type=text], .plan-editor, .present-item textarea.observation { wid
 /* Fenêtres */
 dialog { border: 0; color: var(--aa-text); background: #f7fbfd; box-shadow: 0 18px 44px rgba(3,25,40,.28); }
 dialog::backdrop { background: rgba(3,20,34,.64); }
-.replacement-dialog, .stats-dialog { width: min(480px, calc(100% - 28px)); max-height: 85dvh; padding: 22px; overflow-y: auto; border-radius: 24px; }
-/* Tiroir latéral : plein hauteur, ancré au bord droit, à toutes les tailles d'écran. */
-.menu-dialog { position: fixed; inset: 0 0 0 auto; margin: 0; width: min(82%, 300px); max-width: 300px; height: 100%; max-height: 100%; padding: 20px 14px; border-radius: 0; overflow-y: auto; }
+.menu-dialog, .replacement-dialog, .stats-dialog { width: min(480px, calc(100% - 28px)); max-height: 85dvh; padding: 22px; overflow-y: auto; border-radius: 24px; }
+.menu-dialog { margin: 0 14px 0 auto; }
 .stats-handle { display: none; }
+/* --- TEST uniquement, jusqu'à validation puis promotion explicite sur PROD --- */
+/* Tiroir latéral : plein hauteur, ancré au bord droit, à toutes les tailles d'écran. */
+body.env-test .menu-dialog { position: fixed; inset: 0 0 0 auto; margin: 0; width: min(82%, 300px); max-width: 300px; height: 100%; max-height: 100%; padding: 20px 14px; border-radius: 0; overflow-y: auto; }
+body.env-test .menu-section { margin: 16px 0 6px; }
+body.env-test .menu-line, body.env-test .menu-link { gap: 10px; padding: 11px 8px; }
+/* --- fin TEST uniquement --- */
 .menu-heading { justify-content: space-between; }
 .menu-heading h2, .replacement-dialog h2, .stats-heading h2 { margin: 0; font: 700 21px "Space Grotesk", sans-serif; }
 .menu-close, .stats-close { color: var(--aa-blue-dark); background: var(--aa-sky); }
-.menu-section { margin: 16px 0 6px; color: var(--aa-muted); font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
-.menu-line, .menu-link { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 11px 8px; border: 0; border-bottom: 1px solid #d8e5eb; color: #173c55; background: transparent; font: inherit; text-align: left; text-decoration: none; cursor: pointer; }
+.menu-section { margin: 22px 0 8px; color: var(--aa-muted); font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.menu-line, .menu-link { display: flex; align-items: center; width: 100%; min-height: 48px; padding: 11px 12px; border: 0; border-bottom: 1px solid #d8e5eb; color: #173c55; background: transparent; font: inherit; text-align: left; text-decoration: none; cursor: pointer; }
 .menu-line.is-current { color: var(--aa-blue-dark); background: #e1f2f8; font-weight: 700; }
 .menu-line small, .menu-link small { margin-left: auto; color: #5f7b8d; font-size: 12px; font-weight: 400; }
 .menu-line:disabled { color: #718694; cursor: default; }
@@ -127,8 +133,9 @@ dialog::backdrop { background: rgba(3,20,34,.64); }
   header .titre { font-size: 21px; }
   main { padding: 22px 24px 96px; }
   .fixed-bar { padding-right: 24px; padding-left: 24px; }
-  .replacement-dialog { width: 100%; max-height: 85dvh; margin: auto 0 0; padding-bottom: max(22px, env(safe-area-inset-bottom)); border-radius: 25px 25px 0 0; }
-  /* Dialogue adaptatif : feuille ancrée en bas, pleine largeur, sur petit écran. */
-  .stats-dialog { position: fixed; inset: auto 0 0 0; margin: 0; width: 100%; max-width: 100%; max-height: 85dvh; border-radius: 25px 25px 0 0; padding-bottom: max(22px, env(safe-area-inset-bottom)); }
-  .stats-handle { display: block; width: 36px; height: 4px; margin: 0 auto 14px; border-radius: 99px; background: var(--aa-border); }
+  .replacement-dialog, .stats-dialog { width: 100%; max-height: 85dvh; margin: auto 0 0; padding-bottom: max(22px, env(safe-area-inset-bottom)); border-radius: 25px 25px 0 0; }
+  /* TEST uniquement : dialogue adaptatif propre (inset explicite) au lieu du
+     réglage margin: auto 0 0 ci-dessus, ambigu selon les navigateurs. */
+  body.env-test .stats-dialog { position: fixed; inset: auto 0 0 0; margin: 0; width: 100%; max-width: 100%; }
+  body.env-test .stats-handle { display: block; width: 36px; height: 4px; margin: 0 auto 14px; border-radius: 99px; background: var(--aa-border); }
 }
