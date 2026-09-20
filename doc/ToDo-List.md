@@ -1,6 +1,6 @@
 # ToDo-List — Projet Apnée
 
-Dernière mise à jour : 19/09/2026
+Dernière mise à jour : 20/09/2026
 
 ## Accès et partage — dossier Drive "App Suivi"
 
@@ -83,6 +83,7 @@ Objectif : rendre l'application réutilisable pour une saison ou un club donné,
 - Versionner dans Git les générateurs Python, les modèles neutres et la documentation ; ignorer les classeurs de production, les exports et les données réelles du club.
 - Adapter les générateurs pour qu'ils produisent les classeurs d'un club et d'une saison à partir du modèle et de la source de données indiqués, sans année ou club inscrits en dur.
 - Vérifier les fichiers aujourd'hui suivis par Git, sortir progressivement les classeurs de données du suivi Git sans supprimer les fichiers locaux, puis compléter le fichier `.gitignore`.
+- [x] **Premier lot de ménage Git (20/09/2026)** : les 7 scripts `generateurs/*.py` et `build_all.sh` sont désormais suivis par Git, ainsi que trois documents de proposition non encore versionnés (`doc/prompt-design-bouton-remplacer.md`, `doc/proposition-listes-de-valeurs.md`, `doc/propositions-bouton-remplacer.md`). `.gitignore` complété pour exclure `classeurs/` (arborescence de données réelles attendue par les anciens générateurs), `generateurs/personnes.json` (données nominatives réelles du club, ~80 entrées), les caches Python (`__pycache__/`, `*.pyc`), la config d'éditeur locale (`*.code-workspace`) et les artefacts de debug (`*.inspect.ndjson`) — sans rien supprimer de ces fichiers en local. Au passage, découverte et correction d'une régression locale sans lien avec la prod : les classeurs modèles `L1/`, `L2/`, `L3/`, `L4/`, `LC/`, `DNF/`, `STA/` (`*.xlsx`) étaient vidés de tout leur contenu depuis le 06/09/2026 (0 octet de chaînes texte, contre ~24 Ko dans la version suivie par Git) — artefact ancien et oublié, jamais commité, sans impact sur l'appli (ces fichiers ne sont que des modèles pour réimport dans Google Sheets, jamais lus par le backend en production) ; restaurés à leur dernière version saine par `git checkout`. Suppression confirmée par Fred de deux fichiers obsolètes déjà absents du disque (`indexold.html`, ancien index remplacé par l'appli URL unique ; `_dev/L3/index.html`, lié au workflow DEV abandonné) et de trois fichiers non suivis sans valeur (`AA - Parametrage 2026-2027 - listes normalisees.xlsx` et son `.inspect.ndjson` de 3,7 Mo, `DNF1/AA - Suivi TEST-DNF1 2026-2027.xlsx`, `DNF2/AA - Suivi TEST-DNF2 2026-2027.xlsx`). Reste à faire pour ce chantier : classeurs modèles neutres, adaptation des générateurs à l'arborescence actuelle par ligne (`L1/`, `L2/`, …) plutôt que `generateurs/`+`classeurs/`.
 - Préserver dans le modèle les tables de référence normalisées, notamment `Zone de confort` et `Statuts de séance` avec les colonnes `ID`, `libellé` et `Actif`.
 
 ## Fonctionnalités à venir

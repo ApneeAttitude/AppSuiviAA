@@ -4,3 +4,18 @@
 # copies jetables utilisées pour tester Code.gs via un déploiement de
 # test (URL /dev) avant de committer/publier — jamais destinées au dépôt.
 **/index-test.html
+
+# Python
+__pycache__/
+*.pyc
+
+# config d'éditeur locale
+*.code-workspace
+
+# données opérationnelles du club — vivent dans Google Sheets, pas dans Git
+# (cf. chantier "séparer l'application, les modèles et les données du club")
+classeurs/
+generateurs/personnes.json
+
+# artefacts de debug/inspection
+*.inspect.ndjson
