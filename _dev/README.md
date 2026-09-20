@@ -114,9 +114,10 @@ JavaScript autorisée est la même quel que soit le chemin (`/dev/L2/`,
 
 Depuis le 19/09/2026, `_test/index.html` constitue la première version de
 l'application à URL unique. Le choix d'une ligne se fait avec le paramètre
-`?ligne=L2`, `?ligne=DNF1`, `?ligne=DNF2`, `?ligne=STA1` ou `?ligne=STA2` ;
+`?ligne=L2`, `?ligne=DNF1`, `?ligne=DNF2`, `?ligne=STA1`, `?ligne=STA2` ou
+`?ligne=STAC` ;
 l'absence de paramètre ouvre L2. La page ne référence que les cibles TEST
-isolées correspondantes. L1, L3, L4, LC et STAC restent visibles dans le menu
+isolées correspondantes. L1, L3, L4 et LC restent visibles dans le menu
 mais désactivées tant que leur classeur TEST n'existe pas. Elle ne doit jamais
 être étendue à une cible `PROD-*` pour des essais. Après connexion, elle
 affiche la séance du jour, sinon la prochaine séance. Le menu hamburger ouvre
@@ -141,7 +142,7 @@ spécifique au navigateur.
 Après validation du parcours TEST, `index.html` fournit l'URL unique de
 production : `https://apneeattitude.github.io/AppSuiviAA/?ligne=L2`. Le même
 paramètre ouvre L1, L2, L3, L4, LC, DNF1, DNF2, STA1 ou STA2 ; STAC demeure
-visible mais indisponible tant que sa ligne n'est pas créée. Les anciennes URL
+visible mais indisponible en production tant que sa ligne n'est pas créée. Les anciennes URL
 par ligne sont maintenues pendant la transition. La page `statistiques/` est
 la vue globale de production et n'est pas mentionnée dans le guide. Comme
 `index.html` est à la racine du site, elle charge la feuille commune avec le
@@ -348,7 +349,8 @@ Apps Script TEST puis PROD a été validée ainsi : chaque classeur expose les
 25 encadrants actifs du club dans la liste des remplaçants. Le 19/09/2026,
 la version 51 a été validée en TEST puis promue en PROD pour le rôle `prépa
 encadrant` ; la synchronisation complète a contrôlé les neuf classeurs. STAC
-rejoindra cette synchronisation lors de la création de son classeur et de ses cibles.
+dispose d'une synchronisation TEST ciblée depuis le 20/09/2026 ; elle sera
+ajoutée à la synchronisation de production seulement lors de sa livraison.
 
 ## Statistiques de fréquentation
 
@@ -421,7 +423,7 @@ Cette action est une requête POST authentifiée par le jeton Google de la
 personne connectée. Elle limite l’accès aux adresses de
 `ACCES_STATS_GLOBALES_TEST` et ne retourne que des agrégats par ligne :
 fréquentation moyenne, séances tenues, moyenne par jour de la semaine et
-séances à compléter. Le tableau déplie chaque ligne pour afficher ces détails et propose « Tout déplier / Tout replier ». STAC est affichée comme à configurer tant que sa cible n’existe pas. Les noms des participants ne sont jamais retournés. En
+séances à compléter. Le tableau déplie chaque ligne pour afficher ces détails et propose « Tout déplier / Tout replier ». STAC est incluse dans la vue TEST depuis la création de sa cible. Les noms des participants ne sont jamais retournés. En
 TEST, la vue lit les neuf classeurs PROD uniquement en lecture, car tous les
 classeurs n'ont pas de copie TEST. Le déploiement TEST correspondant est la version 58 (19/09/2026). Avant toute publication en PROD,
 créer une liste d’autorisation PROD contenant Frédéric et les responsables du
