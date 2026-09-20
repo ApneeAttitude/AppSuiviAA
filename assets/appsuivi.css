@@ -90,8 +90,10 @@ select, input[type=text], .plan-editor, .present-item textarea.observation { wid
 /* Fenêtres */
 dialog { border: 0; color: var(--aa-text); background: #f7fbfd; box-shadow: 0 18px 44px rgba(3,25,40,.28); }
 dialog::backdrop { background: rgba(3,20,34,.64); }
-.menu-dialog, .replacement-dialog, .stats-dialog { width: min(480px, calc(100% - 28px)); max-height: 85dvh; padding: 22px; overflow-y: auto; border-radius: 24px; }
-.menu-dialog { margin: 0 14px 0 auto; }
+.replacement-dialog, .stats-dialog { width: min(480px, calc(100% - 28px)); max-height: 85dvh; padding: 22px; overflow-y: auto; border-radius: 24px; }
+/* Tiroir latéral : plein hauteur, ancré au bord droit, à toutes les tailles d'écran. */
+.menu-dialog { position: fixed; inset: 0 0 0 auto; margin: 0; width: min(82%, 300px); max-width: 300px; height: 100%; max-height: 100%; padding: 22px 18px; border-radius: 0; overflow-y: auto; }
+.stats-handle { display: none; }
 .menu-heading { justify-content: space-between; }
 .menu-heading h2, .replacement-dialog h2, .stats-heading h2 { margin: 0; font: 700 21px "Space Grotesk", sans-serif; }
 .menu-close, .stats-close { color: var(--aa-blue-dark); background: var(--aa-sky); }
@@ -125,5 +127,8 @@ dialog::backdrop { background: rgba(3,20,34,.64); }
   header .titre { font-size: 21px; }
   main { padding: 22px 24px 96px; }
   .fixed-bar { padding-right: 24px; padding-left: 24px; }
-  .menu-dialog, .replacement-dialog, .stats-dialog { width: 100%; max-height: 85dvh; margin: auto 0 0; padding-bottom: max(22px, env(safe-area-inset-bottom)); border-radius: 25px 25px 0 0; }
+  .replacement-dialog { width: 100%; max-height: 85dvh; margin: auto 0 0; padding-bottom: max(22px, env(safe-area-inset-bottom)); border-radius: 25px 25px 0 0; }
+  /* Dialogue adaptatif : feuille ancrée en bas, pleine largeur, sur petit écran. */
+  .stats-dialog { position: fixed; inset: auto 0 0 0; margin: 0; width: 100%; max-width: 100%; max-height: 85dvh; border-radius: 25px 25px 0 0; padding-bottom: max(22px, env(safe-area-inset-bottom)); }
+  .stats-handle { display: block; width: 36px; height: 4px; margin: 0 auto 14px; border-radius: 99px; background: var(--aa-border); }
 }
