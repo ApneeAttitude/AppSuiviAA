@@ -92,13 +92,13 @@ dialog { border: 0; color: var(--aa-text); background: #f7fbfd; box-shadow: 0 18
 dialog::backdrop { background: rgba(3,20,34,.64); }
 .replacement-dialog, .stats-dialog { width: min(480px, calc(100% - 28px)); max-height: 85dvh; padding: 22px; overflow-y: auto; border-radius: 24px; }
 /* Tiroir latéral : plein hauteur, ancré au bord droit, à toutes les tailles d'écran. */
-.menu-dialog { position: fixed; inset: 0 0 0 auto; margin: 0; width: min(82%, 300px); max-width: 300px; height: 100%; max-height: 100%; padding: 22px 18px; border-radius: 0; overflow-y: auto; }
+.menu-dialog { position: fixed; inset: 0 0 0 auto; margin: 0; width: min(82%, 300px); max-width: 300px; height: 100%; max-height: 100%; padding: 20px 14px; border-radius: 0; overflow-y: auto; }
 .stats-handle { display: none; }
 .menu-heading { justify-content: space-between; }
 .menu-heading h2, .replacement-dialog h2, .stats-heading h2 { margin: 0; font: 700 21px "Space Grotesk", sans-serif; }
 .menu-close, .stats-close { color: var(--aa-blue-dark); background: var(--aa-sky); }
-.menu-section { margin: 22px 0 8px; color: var(--aa-muted); font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
-.menu-line, .menu-link { display: flex; align-items: center; width: 100%; min-height: 48px; padding: 11px 12px; border: 0; border-bottom: 1px solid #d8e5eb; color: #173c55; background: transparent; font: inherit; text-align: left; text-decoration: none; cursor: pointer; }
+.menu-section { margin: 16px 0 6px; color: var(--aa-muted); font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.menu-line, .menu-link { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 11px 8px; border: 0; border-bottom: 1px solid #d8e5eb; color: #173c55; background: transparent; font: inherit; text-align: left; text-decoration: none; cursor: pointer; }
 .menu-line.is-current { color: var(--aa-blue-dark); background: #e1f2f8; font-weight: 700; }
 .menu-line small, .menu-link small { margin-left: auto; color: #5f7b8d; font-size: 12px; font-weight: 400; }
 .menu-line:disabled { color: #718694; cursor: default; }
