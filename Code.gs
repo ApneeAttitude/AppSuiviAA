@@ -37,6 +37,7 @@ var CLASSEURS = {
   'PROD-DNF2': '1X8E-TMjNh2nvH71MLeJ2DJrzwUvun0eNsD0lTMtqa_c',
   'PROD-STA1': '1J5rI7VnXsQ2ixXgjEvzamtFdys2NrwjcUAgWxzInA3c',
   'PROD-STA2': '1TE7hiZEJPuvTOF6BVct-1Jp0opxpbqIL3kwp9aSqGXo',
+  'PROD-STAC': '1ksbhf8In_4OxPdu3jJMUE7HazmUChCS6y2PZf_dCq_Y',
   'PROD-L1':  '1K2h_E7NaJwGuGiAZn_qqhoMHZGxbW39v-j1_j8x9Pf8',
   'PROD-L2':  '1ANbbV-lc9GZeVHQH8X4mFOaMKo4s8wB5TrnmX96WEko',
   'PROD-L3':  '1gVjJxXIXzvfJUObElSu8D3dnFRHTNcCWemQH-JwDsRY',
@@ -72,7 +73,7 @@ var ACCES_STATS_GLOBALES_PROD = ['flebrigand@gmail.com'];
 // La page reste en TEST, mais compare les données réelles en lecture seule :
 // tous les classeurs n'ont pas de copie TEST. Aucun de ces classeurs n'est
 // modifié par le calcul.
-var CIBLES_STATS_GLOBALES_TEST = ['PROD-L1', 'PROD-L2', 'PROD-L3', 'PROD-L4', 'PROD-LC', 'PROD-DNF1', 'PROD-DNF2', 'PROD-STA1', 'PROD-STA2'];
+var CIBLES_STATS_GLOBALES_TEST = ['PROD-L1', 'PROD-L2', 'PROD-L3', 'PROD-L4', 'PROD-LC', 'PROD-DNF1', 'PROD-DNF2', 'PROD-STA1', 'PROD-STA2', 'PROD-STAC'];
 
 function ouvrirClasseur_(cible) {
   if (!cible) throw new Error('cible manquante (environnement/ligne)');
@@ -334,7 +335,7 @@ function getStatsClub_(body) {
     seances: totalSeances,
     a_completer: totalACompleter,
     lignes: lignes,
-    lignes_attente: ['STAC']
+    lignes_attente: []
   };
   cache.put(cle, JSON.stringify(resultat), CACHE_TTL_DONNEES);
   return resultat;
@@ -876,7 +877,6 @@ var ID_PARAMETRAGE = '18vMX5fqFgCN7NrSkPsSr1ftVoonPFC5xEbjf73iM8Lw';
 // Lignes à synchroniser : toutes les lignes réellement configurées dans
 // CLASSEURS (PROD-*) ci-dessus. Chaque classeur reçoit aussi les encadrants
 // des autres lignes : ils sont ainsi disponibles comme remplaçants.
-// STAC sera ajoutée lors de la création de son classeur et de ses cibles.
 var LIGNES_SYNC = ['L1', 'L2', 'L3', 'L4', 'LC', 'DNF1', 'DNF2', 'STA1', 'STA2', 'STAC'];
 
 // ---------------------------------------------------------- lecture Parametrage
@@ -1187,13 +1187,29 @@ function synchroniserEffectifsTestStac() {
   return resultat;
 }
 
+// Synchronise uniquement le classeur PROD-STAC. L'appartenance de cette
+// ligne nominative est matérialisée dans la colonne « Membre de la ligne ».
+function synchroniserEffectifsProdStac() {
+  var par = lireParametrage_();
+  var resultat = synchroniserPersonnesLigne_(par, 'STAC', 'PROD-STAC');
+  var sh = ouvrirClasseur_('PROD-STAC').getSheetByName(SHEET_PERSONNES);
+  var premiereLigne = 5;
+  var nombreLignes = sh.getLastRow() - premiereLigne + 1;
+  if (nombreLignes > 0) {
+    sh.getRange(premiereLigne, 8, nombreLignes, 1)
+      .setFormulaR1C1('=IF(REGEXMATCH(RC[-2], "(^| / )STAC( / |$)"), "oui", "")');
+  }
+  Logger.log(JSON.stringify(resultat, null, 2));
+  return resultat;
+}
+
 // Synchronise uniquement les lignes de séances déjà livrées en production.
 // Cette entrée évite de relancer les autres lignes lorsque le besoin porte
 // exclusivement sur la disponibilité des remplaçants DNF/STA.
 function synchroniserEffectifsLignesSeancesProd() {
   var par = lireParametrage_();
   var resultats = [];
-  ['DNF1', 'DNF2', 'STA1', 'STA2'].forEach(function (ligne) {
+  ['DNF1', 'DNF2', 'STA1', 'STA2', 'STAC'].forEach(function (ligne) {
     try {
       resultats.push(synchroniserPersonnesLigne_(par, ligne));
     } catch (e) {
