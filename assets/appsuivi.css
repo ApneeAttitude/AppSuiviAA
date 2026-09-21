@@ -127,6 +127,29 @@ dialog::backdrop { background: rgba(3,20,34,.64); }
 .stats-value, .stats-todo strong { color: var(--aa-blue-dark); font-weight: 700; }
 .stats-todo { margin: 0; padding: 0; list-style: none; }
 .stats-todo li { padding: 9px 0; border-bottom: 1px solid #dfe9ee; font-size: 13px; }
+/* Statistiques du club (popup, 21/09/2026) : tableau comparatif des lignes,
+   chaque ligne dépliable pour son détail par jour et ses séances à
+   compléter (mêmes composants que les statistiques de ligne ci-dessus). */
+.stats-comparison-title { margin: 20px 0 8px; font-size: 15px; }
+.stats-comparison-tools { display: flex; justify-content: flex-end; margin: -4px 0 8px; }
+.stats-comparison-tools button { border: 1px solid var(--aa-border); border-radius: 999px; padding: 6px 12px; color: var(--aa-blue-dark); background: #fff; font: 600 12px Manrope, sans-serif; cursor: pointer; }
+.stats-comparison { overflow: hidden; border: 1px solid var(--aa-border); border-radius: 14px; background: #fff; }
+.stats-comparison-row, .stats-line-detail summary { display: grid; grid-template-columns: 46px minmax(70px, 1fr) 44px 44px; gap: 6px; align-items: center; padding: 10px; font-size: 11.5px; }
+.stats-comparison-head { background: var(--aa-page); color: var(--aa-muted); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
+.stats-line-name { font-weight: 700; color: var(--aa-text); }
+.stats-bar-wrap { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 11.5px; color: var(--aa-muted); }
+.stats-bar-wrap .stats-track { flex: 1; }
+.stats-number { text-align: right; color: var(--aa-muted); }
+.stats-line-detail { border-bottom: 1px solid #dfe9ee; }
+.stats-line-detail:last-child { border-bottom: 0; }
+.stats-line-detail summary { position: relative; padding-right: 26px; cursor: pointer; list-style: none; }
+.stats-line-detail summary::-webkit-details-marker { display: none; }
+.stats-line-detail summary::after { content: '›'; position: absolute; right: 8px; top: 50%; color: var(--aa-blue); font-size: 17px; line-height: 1; transform: translateY(-50%); transition: transform .15s ease; }
+.stats-line-detail[open] summary::after { transform: translateY(-50%) rotate(90deg); }
+.stats-line-detail.unavailable summary { cursor: default; color: var(--aa-muted); }
+.stats-line-detail.unavailable summary::after { visibility: hidden; }
+.stats-line-body { padding: 2px 10px 12px; }
+.stats-line-body h4 { margin: 12px 0 6px; font: 700 12.5px "Space Grotesk", sans-serif; color: var(--aa-text); }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 @media (max-width: 600px) {
   header { position: relative; padding: 24px 24px 28px; border-radius: 0 0 22px 22px; }
