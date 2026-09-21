@@ -90,7 +90,7 @@ def main():
 
     header(c, "Renseigner les présences", "Le guide rapide pour une saisie simple et fiable, depuis un téléphone ou un ordinateur.", 1)
     y = H - 69 * mm
-    y = numbered_step(c, y, 1, "Ouvrez AppSuiviAA", "Utilisez le lien unique du club : <link href='https://apneeattitude.github.io/AppSuiviAA/' color='#087aa8'><u>https://apneeattitude.github.io/AppSuiviAA/</u></link>. Le menu permet de choisir votre ligne.")
+    y = numbered_step(c, y, 1, "Ouvrez AppSuiviAA", "Utilisez le lien unique du club : <link href='https://apneeattitude.github.io/AppSuiviAA/' color='#087aa8'><u>https://apneeattitude.github.io/AppSuiviAA/</u></link>. Vous arrivez directement sur la ligne que vous encadrez ; le menu en haut à droite permet d'en choisir une autre.")
     y = numbered_step(c, y, 2, "Connectez-vous avec votre compte Google du club", "En cas de refus de connexion, contactez Fred.")
     y = numbered_step(c, y, 3, "Choisissez la séance", "Utilisez la liste déroulante en haut de page. La séance du jour est souvent déjà sélectionnée.")
     y = numbered_step(c, y, 4, "Ajoutez les participants", "Tapez les premières lettres du prénom ou du nom, puis touchez Ajouter.")
@@ -108,7 +108,7 @@ def main():
     section_card(c, M + card_width + gap, y, card_width, "Observation", "Ajoutez un commentaire facultatif. La zone s'agrandit jusqu'à trois lignes puis peut défiler.")
     y -= 49 * mm
     section_card(c, M, y, card_width, "Corriger une erreur", "Touchez la croix à côté d'un participant pour le retirer avant l'enregistrement.")
-    section_card(c, M + card_width + gap, y, card_width, "Participant invité", "Le badge invité indique une personne connue du club, mais non membre officiel de la ligne.")
+    section_card(c, M + card_width + gap, y, card_width, "Statistiques de la ligne", "Ouvrez le menu puis « Statistiques de la ligne » : réservé aux encadrants de cette ligne, pour suivre sa fréquentation.")
 
     y -= 50 * mm
     c.setFillColor(colors.HexColor("#0b4446"))
