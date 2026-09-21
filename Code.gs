@@ -308,7 +308,20 @@ function getStatsLigne_(body) {
   var email = verifierJeton_(body.idToken).toLowerCase();
   var code = cible.replace(/^(TEST|PROD)-/, '');
   var par = lireParametrage_();
-  if (!autoriseStatsLigne_(par, email, code)) throw new Error('accès réservé aux encadrants de cette ligne');
+  if (!autoriseStatsLigne_(par, email, code)) {
+    // Diagnostic temporaire (21/09/2026), affiché directement dans le
+    // message d'erreur visible dans l'appli — à retirer une fois l'anomalie
+    // élucidée (le menu autorise, ce contrôle refuse, alors que les deux
+    // appellent autoriseStatsLigne_ avec les mêmes paramètres).
+    var pidDiag = Object.keys(par.personnes).filter(function (id) {
+      return String(par.personnes[id].email || '').toLowerCase() === email;
+    })[0];
+    var inscriptionsDiag = par.inscriptions.filter(function (i) { return i.id === pidDiag; });
+    var encadrementsDiag = (par.encadrements || []).filter(function (e) { return e.id === pidDiag; });
+    throw new Error('accès réservé aux encadrants de cette ligne [diag pid=' + (pidDiag || 'aucun') +
+      ' code=' + code + ' inscriptions=' + JSON.stringify(inscriptionsDiag) +
+      ' encadrements=' + JSON.stringify(encadrementsDiag) + ']');
+  }
   return getStats_(body.cible);
 }
 
@@ -328,18 +341,6 @@ function getAutorisations_(body) {
   var email = verifierJeton_(body.idToken).toLowerCase();
   var code = cible.replace(/^(TEST|PROD)-/, '');
   var par = lireParametrage_();
-  // Diagnostic temporaire (21/09/2026) : à retirer une fois l'anomalie de
-  // masquage du menu élucidée (le menu autorise, getStatsLigne_ refuse,
-  // alors que les deux appellent la même fonction avec les mêmes
-  // paramètres). Consultable dans l'éditeur Apps Script, onglet Exécutions.
-  var pidDiag = Object.keys(par.personnes).filter(function (id) {
-    return String(par.personnes[id].email || '').toLowerCase() === email;
-  })[0];
-  Logger.log(JSON.stringify({
-    diag: 'autorisations', email: email, cible: cible, code: code, pid: pidDiag || null,
-    inscriptions: par.inscriptions.filter(function (i) { return i.id === pidDiag; }),
-    encadrements: (par.encadrements || []).filter(function (e) { return e.id === pidDiag; })
-  }));
   return {
     ok: true,
     statsLigne: autoriseStatsLigne_(par, email, code),
