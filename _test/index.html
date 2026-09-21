@@ -211,11 +211,8 @@ function chargerAutorisations_() {
     body: JSON.stringify({ action: 'autorisations', environnement: 'TEST', cible: CIBLE, idToken: idToken })
   })
     .then(function (r) { return r.json(); })
-    .then(function (d) {
-      console.log('[diag autorisations] cible=' + CIBLE + ' reponse=' + JSON.stringify(d)); // temporaire
-      if (d.ok) appliquerAutorisations_(d);
-    })
-    .catch(function (e) { console.log('[diag autorisations] erreur reseau', e); /* Menu reste masqué par défaut en cas d'échec. */ });
+    .then(function (d) { if (d.ok) appliquerAutorisations_(d); })
+    .catch(function () { /* Menu reste masqué par défaut en cas d'échec. */ });
 }
 function chargerDonnees() {
   fetch(WEB_APP_URL + '?action=data&cible=' + encodeURIComponent(CIBLE), { cache: 'no-store' })

@@ -15,6 +15,13 @@
   --aa-shadow: 0 8px 22px rgba(8, 47, 73, .09);
 }
 * { box-sizing: border-box; }
+/* L'attribut hidden doit toujours l'emporter, même sur un élément qui a par
+   ailleurs sa propre règle display (ex. .menu-link { display:flex }) : une
+   règle d'auteur avec la même spécificité que le [hidden] du navigateur
+   l'emporte sinon sur lui, quel que soit l'ordre — piège CSS classique qui
+   rendait le masquage du menu selon les droits sans effet visuel malgré un
+   attribut hidden bien posé (21/09/2026). */
+[hidden] { display: none !important; }
 body { margin: 0; background: var(--aa-page); color: var(--aa-text); font-family: Manrope, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
 .bg-photo { display: none; }
 header { position: sticky; top: 0; z-index: 5; padding: 16px max(20px, calc((100% - 480px) / 2)); color: #fff; background: linear-gradient(135deg, var(--aa-navy), var(--aa-blue)); }
