@@ -147,7 +147,21 @@ function handleCredentialResponse(resp) {
   document.getElementById('signin').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   document.getElementById('bar').style.display = 'block';
-  appliquerLigne_(ligneDepuisUrl_());
+  var ligneUrl = ligneDepuisUrl_();
+  if (ligneUrl) { appliquerLigne_(ligneUrl); return; }
+  // Pas de ?ligne= dans l'URL : on essaie de retrouver la ligne dont ce
+  // compte est encadrant, plutôt que de retomber directement sur L2
+  // (demande de Fred, 21/09/2026).
+  fetch(WEB_APP_URL, {
+    method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: 'ligneParDefaut', idToken: idToken })
+  })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      var code = d.ok && d.code && LIGNES_TEST[d.code] && LIGNES_TEST[d.code].disponible ? d.code : 'L2';
+      appliquerLigne_(code);
+    })
+    .catch(function () { appliquerLigne_('L2'); });
 }
 
 window.onload = function () {
@@ -164,7 +178,7 @@ window.onload = function () {
 
 function ligneDepuisUrl_() {
   var code = new URLSearchParams(window.location.search).get('ligne');
-  return code && LIGNES_TEST[code.toUpperCase()] && LIGNES_TEST[code.toUpperCase()].disponible ? code.toUpperCase() : 'L2';
+  return code && LIGNES_TEST[code.toUpperCase()] && LIGNES_TEST[code.toUpperCase()].disponible ? code.toUpperCase() : null;
 }
 function titreLigne_() { return ligneCourante + ' · ' + LIGNES_TEST[ligneCourante].libelle; }
 function renderMenuLignes_() {

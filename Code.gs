@@ -115,6 +115,7 @@ function doPost(e) {
     if (body.action === 'statsLigne') return jsonOut_(getStatsLigne_(body));
     if (body.action === 'statsClub') return jsonOut_(getStatsClub_(body));
     if (body.action === 'autorisations') return jsonOut_(getAutorisations_(body));
+    if (body.action === 'ligneParDefaut') return jsonOut_(getLigneParDefaut_(body));
     return jsonOut_({ ok: false, error: 'action inconnue : ' + body.action });
   } catch (err) {
     return jsonOut_({ ok: false, error: (err && err.message) || String(err) });
@@ -290,6 +291,20 @@ function estResponsableClub_(par, email) {
   return Object.keys(par.personnes).some(function (id) {
     return par.personnes[id].responsableClub && par.personnes[id].email === email;
   });
+}
+
+// Ligne dont le compte connecté est encadrant (ou prépa encadrant), pour le
+// diriger automatiquement dessus à la connexion quand l'URL n'indique pas de
+// ligne (demande de Fred, 21/09/2026). Renvoie la première trouvée dans
+// l'ordre de LIGNES_SYNC, ou null si aucune — le front garde alors son repli
+// habituel (L2). Ne dépend pas de l'environnement : le rôle d'une personne
+// est le même sur TEST et sur PROD, seule sa disponibilité y diffère (géré
+// côté front, qui connaît les cibles réellement configurées).
+function getLigneParDefaut_(body) {
+  var email = verifierJeton_(body.idToken).toLowerCase();
+  var par = lireParametrage_();
+  var code = LIGNES_SYNC.filter(function (c) { return autoriseStatsLigne_(par, email, c); })[0];
+  return { ok: true, code: code || null };
 }
 
 // Statistiques d'une ligne : le compte Google est relié à la personne du
