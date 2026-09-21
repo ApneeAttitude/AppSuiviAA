@@ -42,9 +42,7 @@ var CLASSEURS = {
   'PROD-L2':  '1ANbbV-lc9GZeVHQH8X4mFOaMKo4s8wB5TrnmX96WEko',
   'PROD-L3':  '1gVjJxXIXzvfJUObElSu8D3dnFRHTNcCWemQH-JwDsRY',
   'PROD-L4':  '1_MSHANd4z8XDeh8d8CD7402AP_caSkBIaPbiwHIZLjQ',
-  'PROD-LC':  '1XCrHI4MRfhWnGljkul7XIlHteI5hjyCuvUYLi-HzOqg',
-  'PROD-DNF': 'REMPLACER_PAR_ID_CLASSEUR_PROD_DNF',
-  'PROD-STA': 'REMPLACER_PAR_ID_CLASSEUR_PROD_STA'
+  'PROD-LC':  '1XCrHI4MRfhWnGljkul7XIlHteI5hjyCuvUYLi-HzOqg'
 };
 
 var SHEET_CALENDRIER = 'Calendrier';
@@ -330,6 +328,18 @@ function getAutorisations_(body) {
   var email = verifierJeton_(body.idToken).toLowerCase();
   var code = cible.replace(/^(TEST|PROD)-/, '');
   var par = lireParametrage_();
+  // Diagnostic temporaire (21/09/2026) : à retirer une fois l'anomalie de
+  // masquage du menu élucidée (le menu autorise, getStatsLigne_ refuse,
+  // alors que les deux appellent la même fonction avec les mêmes
+  // paramètres). Consultable dans l'éditeur Apps Script, onglet Exécutions.
+  var pidDiag = Object.keys(par.personnes).filter(function (id) {
+    return String(par.personnes[id].email || '').toLowerCase() === email;
+  })[0];
+  Logger.log(JSON.stringify({
+    diag: 'autorisations', email: email, cible: cible, code: code, pid: pidDiag || null,
+    inscriptions: par.inscriptions.filter(function (i) { return i.id === pidDiag; }),
+    encadrements: (par.encadrements || []).filter(function (e) { return e.id === pidDiag; })
+  }));
   return {
     ok: true,
     statsLigne: autoriseStatsLigne_(par, email, code),
