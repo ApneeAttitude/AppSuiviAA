@@ -65,11 +65,13 @@ var SHEET_LISTES = 'Listes';
 var CACHE_TTL_DONNEES = 120;
 var CACHE_TTL_FICHE = 60;
 
-// Vue de synthèse réservée aux responsables. La liste est volontairement
-// séparée des rôles d'encadrant : consulter les statistiques de toutes les
-// lignes n'est pas nécessaire pour renseigner une séance.
-var ACCES_STATS_GLOBALES_TEST = ['flebrigand@gmail.com'];
-var ACCES_STATS_GLOBALES_PROD = ['flebrigand@gmail.com'];
+// Vue de synthèse réservée aux responsables du club. Le statut de
+// responsable est une donnée du classeur de Paramétrage (onglet Personnes,
+// colonne « Responsable club » = oui), jamais codée en dur ici — cf.
+// estResponsableClub_ et preparerResponsablesClub (demande de Fred,
+// 21/09/2026). Volontairement séparé des rôles d'encadrant : consulter les
+// statistiques de toutes les lignes n'est pas nécessaire pour renseigner une
+// séance.
 // La page reste en TEST, mais compare les données réelles en lecture seule :
 // tous les classeurs n'ont pas de copie TEST. Aucun de ces classeurs n'est
 // modifié par le calcul.
@@ -282,6 +284,16 @@ function autoriseStatsLigne_(par, email, code) {
   return autoriseInscription || autoriseAffectation;
 }
 
+// Un « responsable club » est une personne du référentiel central marquée
+// ainsi dans l'onglet Personnes du classeur de Paramétrage (colonne
+// « Responsable club » = oui, cf. preparerResponsablesClub) — jamais une
+// liste codée en dur (demande de Fred, 21/09/2026).
+function estResponsableClub_(par, email) {
+  return Object.keys(par.personnes).some(function (id) {
+    return par.personnes[id].responsableClub && par.personnes[id].email === email;
+  });
+}
+
 // Statistiques d'une ligne : le compte Google est relié à la personne du
 // référentiel central via son courriel (Personnes!F). L'accès est autorisé si
 // cette personne possède un rôle encadrant ou prépa encadrant actif sur la
@@ -318,11 +330,10 @@ function getAutorisations_(body) {
   var email = verifierJeton_(body.idToken).toLowerCase();
   var code = cible.replace(/^(TEST|PROD)-/, '');
   var par = lireParametrage_();
-  var autorisesGlobales = environnement === 'PROD' ? ACCES_STATS_GLOBALES_PROD : ACCES_STATS_GLOBALES_TEST;
   return {
     ok: true,
     statsLigne: autoriseStatsLigne_(par, email, code),
-    statsGenerales: autorisesGlobales.indexOf(email) !== -1
+    statsGenerales: estResponsableClub_(par, email)
   };
 }
 
@@ -334,8 +345,8 @@ function getStatsClub_(body) {
     throw new Error('vue globale indisponible pour cet environnement');
   }
   var email = verifierJeton_(body.idToken).toLowerCase();
-  var autorises = environnement === 'PROD' ? ACCES_STATS_GLOBALES_PROD : ACCES_STATS_GLOBALES_TEST;
-  if (autorises.indexOf(email) === -1) {
+  var par = lireParametrage_();
+  if (!estResponsableClub_(par, email)) {
     throw new Error('accès réservé aux responsables du club');
   }
 
@@ -931,12 +942,19 @@ function lireParametrage_() {
   var personnes = {};
   var ordreClub = [];
   var vp = ssp.getSheetByName('Personnes').getDataRange().getValues();
+  // Colonne « Responsable club » repérée par son en-tête (ligne 4), comme
+  // pour les onglets Presences : absente sur un classeur pas encore migré
+  // (cf. preparerResponsablesClub), auquel cas personne n'est responsable.
+  var headerPersonnes = vp[3] || [];
+  var colResponsableClub = headerPersonnes.indexOf('Responsable club');
   for (var r = 4; r < vp.length; r++) {           // ligne 5 = première donnée
     var pid = vp[r][0];
     if (!pid) continue;
     personnes[pid] = {
       id: pid, nom: vp[r][1], prenom: vp[r][2],
-      email: String(vp[r][5] || '').trim().toLowerCase()
+      email: String(vp[r][5] || '').trim().toLowerCase(),
+      responsableClub: colResponsableClub !== -1 &&
+        String(vp[r][colResponsableClub] || '').trim().toLowerCase() === 'oui'
     };
     ordreClub.push(pid);
   }
@@ -1291,6 +1309,47 @@ function preparerRolesPrepaEncadrant() {
     inscriptions.getRange(lignes[cle], 7).setValue('prépa encadrant');
   });
   var resultat = { role: 'prépa encadrant', personnes: Object.keys(cibles).map(function (cle) { return cibles[cle]; }) };
+  Logger.log(JSON.stringify(resultat, null, 2));
+  return resultat;
+}
+
+// Migration ponctuelle du référentiel central : ajoute (si absente) la
+// colonne « Responsable club » à l'onglet Personnes, et l'active pour les
+// responsables déjà connus. Recherche par courriel plutôt que par ID Pxxx,
+// pour ne pas dépendre du référentiel — remplace les listes
+// ACCES_STATS_GLOBALES_TEST/PROD, jusque-là codées en dur dans Code.gs
+// (demande de Fred, 21/09/2026) : cette donnée doit vivre dans le classeur.
+function preparerResponsablesClub() {
+  var ssp = SpreadsheetApp.openById(ID_PARAMETRAGE);
+  var sh = ssp.getSheetByName('Personnes');
+  if (!sh) throw new Error('onglet Personnes introuvable');
+
+  var header = sh.getRange(4, 1, 1, sh.getLastColumn()).getValues()[0];
+  var col = header.indexOf('Responsable club') + 1;
+  if (!col) {
+    col = sh.getLastColumn() + 1;
+    var refCourriel = sh.getRange(4, 6); // reprend le style de l'en-tête Courriel
+    sh.getRange(4, col).setValue('Responsable club')
+      .setFontWeight(refCourriel.getFontWeight())
+      .setBackground(refCourriel.getBackground())
+      .setFontColor(refCourriel.getFontColor());
+  }
+
+  var nRows = sh.getLastRow() - 4;
+  var emails = sh.getRange(5, 6, nRows, 1).getValues(); // colonne F : Courriel
+  var cibles = ['flebrigand@gmail.com', 'd.segui@psm-ffessm.fr'];
+  var trouves = {};
+  for (var r = 0; r < nRows; r++) {
+    var email = String(emails[r][0] || '').trim().toLowerCase();
+    if (cibles.indexOf(email) !== -1) {
+      sh.getRange(5 + r, col).setValue('oui');
+      trouves[email] = true;
+    }
+  }
+  var manquants = cibles.filter(function (e) { return !trouves[e]; });
+  if (manquants.length) throw new Error('courriel(s) introuvable(s) dans Personnes : ' + manquants.join(', '));
+
+  var resultat = { colonne: col, responsables: cibles };
   Logger.log(JSON.stringify(resultat, null, 2));
   return resultat;
 }
