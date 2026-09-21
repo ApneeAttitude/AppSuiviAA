@@ -26,9 +26,11 @@
         <div class="seance-heading">
         <label for="seance">Séance</label>
         </div>
-        <div class="session-picker">
-          <select id="seance" aria-label="Choisir une séance"></select>
-          <span class="seance-select-indicator" aria-hidden="true">⌄</span>
+        <div class="session-row">
+          <div class="session-picker session-picker--separate-status">
+            <select id="seance" aria-label="Choisir une séance"></select>
+            <span class="seance-select-indicator" aria-hidden="true">⌄</span>
+          </div>
           <div class="status-pill-wrap">
             <label for="statut" class="sr-only">Statut de la séance</label>
             <select id="statut" aria-label="Statut de la séance"></select>
@@ -77,14 +79,15 @@
   <div class="menu-heading"><h2 id="menuTitre">Menu</h2><button type="button" id="menuFermer" class="menu-close" aria-label="Fermer le menu">✕</button></div>
   <p class="menu-section">Mes séances</p>
   <div id="menuLignes"></div>
-  <p class="menu-section">Suivi</p>
-  <button type="button" id="menuStatsLigne" class="menu-link">Statistiques de la ligne</button>
-  <a class="menu-link" href="statistiques/">Statistiques générales <small>Responsables</small></a>
+  <p id="menuSuiviSection" class="menu-section" hidden>Suivi</p>
+  <button type="button" id="menuStatsLigne" class="menu-link" hidden>Statistiques de la ligne</button>
+  <a id="menuStatsGenerales" class="menu-link" href="statistiques/" hidden>Statistiques générales <small>Responsables</small></a>
   <p class="menu-section">Aide</p>
   <a class="menu-link" href="guides/Guide-AppSuiviAA.pdf" target="_blank" rel="noopener">Guide d’utilisation</a>
 </dialog>
 
 <dialog id="statsDialog" class="stats-dialog" aria-labelledby="statsTitre">
+  <div class="stats-handle" aria-hidden="true"></div>
   <div class="stats-heading">
     <h2 id="statsTitre">Fréquentation de la ligne</h2>
     <button type="button" id="statsFermer" class="stats-close" aria-label="Fermer les statistiques">✕</button>
@@ -190,6 +193,25 @@ function appliquerLigne_(code) {
   document.getElementById('suggestions').textContent = '';
   renderMenuLignes_();
   chargerDonnees();
+  chargerAutorisations_();
+}
+// Droits d'accès aux statistiques (ligne courante + générales) : vérifiés au
+// serveur à chaque changement de ligne, pour masquer les entrées du menu
+// plutôt que les afficher puis signaler un refus. Masquées par défaut
+// (attribut hidden posé dans le HTML) tant que la réponse n'est pas arrivée.
+function appliquerAutorisations_(autorisations) {
+  document.getElementById('menuStatsLigne').hidden = !autorisations.statsLigne;
+  document.getElementById('menuStatsGenerales').hidden = !autorisations.statsGenerales;
+  document.getElementById('menuSuiviSection').hidden = !autorisations.statsLigne && !autorisations.statsGenerales;
+}
+function chargerAutorisations_() {
+  fetch(WEB_APP_URL, {
+    method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: 'autorisations', environnement: 'PROD', cible: CIBLE, idToken: idToken })
+  })
+    .then(function (r) { return r.json(); })
+    .then(function (d) { if (d.ok) appliquerAutorisations_(d); })
+    .catch(function () { /* Menu reste masqué par défaut en cas d'échec. */ });
 }
 function chargerDonnees() {
   fetch(WEB_APP_URL + '?action=data&cible=' + encodeURIComponent(CIBLE), { cache: 'no-store' })
@@ -202,7 +224,7 @@ function chargerDonnees() {
       statutsSeance = d.listesStatutsSeance || [];
       remplirSeances();
     })
-    .catch(function (e) { afficherMessage('Erreur de chargement : ' + e, true); });
+    .catch(function () { afficherMessage('Erreur de chargement. Réessayez.', true); });
 }
 
 function ouvrirStatistiques_() {
@@ -217,10 +239,10 @@ function ouvrirStatistiques_() {
   })
     .then(function (r) { return r.json(); })
     .then(function (d) {
-      if (!d.ok) throw new Error(d.error || 'statistiques indisponibles');
+      if (!d.ok) { contenu.textContent = d.error || 'Statistiques indisponibles.'; return; }
       afficherStatistiques_(d);
     })
-    .catch(function (e) { contenu.textContent = 'Impossible de charger les statistiques : ' + e.message; });
+    .catch(function () { contenu.textContent = 'Impossible de charger les statistiques. Réessayez.'; });
 }
 function libelleMoyenne_(valeur) { return String(valeur).replace('.', ',') + ' pers.'; }
 function ajouterBarresStats_(parent, donnees, maximumCommun) {
