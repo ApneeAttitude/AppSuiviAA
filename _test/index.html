@@ -158,6 +158,7 @@ function handleCredentialResponse(resp) {
   })
     .then(function (r) { return r.json(); })
     .then(function (d) {
+      console.log('[diag ligneParDefaut] reponse=' + JSON.stringify(d)); // temporaire
       var code = d.ok && d.code && LIGNES_TEST[d.code] && LIGNES_TEST[d.code].disponible ? d.code : 'L2';
       appliquerLigne_(code);
     })
