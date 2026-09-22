@@ -2408,3 +2408,36 @@ function migrerEchelleZoneConfortTestL2() {
   Logger.log(JSON.stringify(resultat, null, 2));
   return resultat;
 }
+
+var CIBLES_PROD_TOUTES_LIGNES = [
+  'PROD-L1', 'PROD-L2', 'PROD-L3', 'PROD-L4', 'PROD-LC',
+  'PROD-DNF1', 'PROD-DNF2', 'PROD-STA1', 'PROD-STA2', 'PROD-STAC'
+];
+
+// Diagnostic en lecture seule, avant de migrer la Zone de confort sur tous
+// les classeurs PROD (23/09/2026) : STAC s'est déjà révélée différemment
+// structurée que les autres pour le Statut de séance (cf.
+// diagnostiquerStatutIdStac plus haut) — on regarde donc l'état réel de
+// chaque classeur avant de lancer quoi que ce soit en masse.
+function diagnostiquerZoneConfortToutesLignesProd() {
+  var resultats = CIBLES_PROD_TOUTES_LIGNES.map(function (cible) {
+    try { return diagnostiquerZoneConfort_(cible); }
+    catch (e) { return { cible: cible, erreur: String(e) }; }
+  });
+  Logger.log(JSON.stringify(resultats, null, 2));
+  return resultats;
+}
+
+// Migration en masse (23/09/2026), une fois le diagnostic ci-dessus revu.
+// migrerEchelleZoneConfort_ refuse déjà d'écrire si l'état d'un classeur ne
+// correspond pas à l'ancienne échelle attendue ou si un libellé de
+// Presences est inconnu — le try/catch isole donc un classeur en défaut
+// sans toucher aux autres ni laisser d'écriture partielle sur celui-ci.
+function migrerEchelleZoneConfortToutesLignesProd() {
+  var resultats = CIBLES_PROD_TOUTES_LIGNES.map(function (cible) {
+    try { return migrerEchelleZoneConfort_(cible); }
+    catch (e) { return { cible: cible, erreur: String(e) }; }
+  });
+  Logger.log(JSON.stringify(resultats, null, 2));
+  return resultats;
+}

@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Guide rapide — AppSuiviAA</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap">
+<style>
+  :root {
+    --navy: #082f49; --blue: #0b6e99; --blue-dark: #075985;
+    --sky: #dceff6; --surface: #ffffff; --page: #f4f8fa;
+    --text: #172e42; --muted: #597083; --border: #c9dfe9;
+    --shadow: 0 8px 22px rgba(8, 47, 73, .09);
+    --amber-bg: #fff8ea; --amber-line: #efd39a; --amber-ink: #7a4e0c;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text); font: 400 15px/1.5 Manrope, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  h1, h2, h3 { font-family: "Space Grotesk", Manrope, sans-serif; }
+  a { color: var(--blue-dark); }
+
+  header { padding: 30px 20px 34px; color: #fff; background: linear-gradient(135deg, var(--navy), var(--blue)); }
+  header .eyebrow { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: #b9d3e0; }
+  header h1 { margin: 0 0 8px; font-size: 26px; font-weight: 700; }
+  header p { margin: 0; max-width: 56ch; font-size: 15px; line-height: 1.5; color: #d7e9f0; }
+
+  main { max-width: 720px; margin: 0 auto; padding: 26px 20px 60px; }
+
+  section { margin-bottom: 34px; }
+  section > h2 { margin: 0 0 16px; font-size: 20px; font-weight: 700; }
+
+  .steps { display: flex; flex-direction: column; gap: 12px; }
+  .step { display: flex; gap: 14px; padding: 16px; border-radius: 18px; background: var(--surface); box-shadow: var(--shadow); }
+  .step .num { flex: none; display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%; background: var(--blue); color: #fff; font: 700 15px "Space Grotesk", sans-serif; }
+  .step .body h3 { margin: 3px 0 5px; font-size: 16px; font-weight: 700; }
+  .step .body p { margin: 0; color: var(--muted); font-size: 14px; }
+
+  .callout { margin-top: 14px; padding: 14px 18px; border: 1px solid var(--amber-line); border-radius: 16px; background: var(--amber-bg); font-size: 14px; line-height: 1.5; }
+  .callout strong { color: var(--amber-ink); }
+
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .card { padding: 16px 18px; border-radius: 18px; background: var(--surface); box-shadow: var(--shadow); }
+  .card h3 { margin: 0 0 8px; font-size: 15.5px; font-weight: 700; color: var(--blue-dark); }
+  .card p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--text); }
+
+  .zones { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+  .zones li { display: flex; align-items: baseline; gap: 8px; font-size: 13.5px; line-height: 1.4; }
+  .zones .dot { flex: none; width: 10px; height: 10px; margin-top: 3px; border-radius: 50%; }
+  .zones b { color: var(--text); }
+
+  .link-card { padding: 20px; border-radius: 18px; background: var(--sky); }
+  .link-card h3 { margin: 0 0 10px; font-size: 16px; font-weight: 700; }
+  .link-card .url { display: inline-block; margin-bottom: 10px; padding: 10px 14px; border-radius: 12px; background: var(--surface); font: 600 14.5px Manrope, sans-serif; word-break: break-all; }
+  .link-card p { margin: 0; font-size: 13.5px; color: var(--muted); }
+
+  footer { max-width: 720px; margin: 0 auto; padding: 0 20px 40px; color: var(--muted); font-size: 12.5px; }
+
+  @media (max-width: 560px) {
+    .cards { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="eyebrow">Suivi des présences</span>
+  <h1>Guide rapide AppSuiviAA</h1>
+  <p>Le guide pour une saisie simple et fiable, depuis un téléphone ou un ordinateur.</p>
+</header>
+
+<main>
+
+  <section>
+    <h2>Renseigner les présences</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="num">1</div>
+        <div class="body">
+          <h3>Ouvrez AppSuiviAA</h3>
+          <p>Utilisez le lien unique du club : <a href="https://apneeattitude.github.io/AppSuiviAA/">apneeattitude.github.io/AppSuiviAA</a>. Vous arrivez directement sur la ligne que vous encadrez ; le menu en haut à droite permet d'en choisir une autre.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="num">2</div>
+        <div class="body">
+          <h3>Connectez-vous avec votre compte Google du club</h3>
+          <p>En cas de refus de connexion, contactez Fred.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="num">3</div>
+        <div class="body">
+          <h3>Choisissez la séance</h3>
+          <p>Utilisez la liste déroulante en haut de page. La séance du jour est souvent déjà sélectionnée.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="num">4</div>
+        <div class="body">
+          <h3>Ajoutez les participants</h3>
+          <p>Tapez les premières lettres du prénom ou du nom, puis touchez Ajouter.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="num">5</div>
+        <div class="body">
+          <h3>Enregistrez</h3>
+          <p>Touchez Enregistrer la séance. Le message final confirme le nombre de présences enregistrées.</p>
+        </div>
+      </div>
+    </div>
+    <div class="callout"><strong>À savoir.</strong> Vous pouvez revenir sur une séance pour la modifier ou la compléter.</div>
+  </section>
+
+  <section>
+    <h2>Compléter les informations</h2>
+    <div class="cards">
+      <div class="card">
+        <h3>Vérifier l'encadrant</h3>
+        <p>Le nom de l'encadrant habituel est affiché sous la séance sélectionnée.</p>
+      </div>
+      <div class="card">
+        <h3>Remplacer un encadrant</h3>
+        <p>Touchez Remplacer, recherchez un encadrant du club, puis choisissez-le. Le changement vaut pour cette séance seulement.</p>
+      </div>
+      <div class="card">
+        <h3>Zone de confort</h3>
+        <ul class="zones">
+          <li><span class="dot" style="background:#3d8fd1"></span><span><b>Routine</b> — très facile, quasiment sans difficulté.</span></li>
+          <li><span class="dot" style="background:#3ea86b"></span><span><b>Maîtrise</b> — on maîtrise, mais ça demande de l'engagement.</span></li>
+          <li><span class="dot" style="background:#e0c209"></span><span><b>Performance</b> — la zone de travail principale pour progresser.</span></li>
+          <li><span class="dot" style="background:#df8a3a"></span><span><b>Défi</b> — fortement challengé, séance difficile.</span></li>
+          <li><span class="dot" style="background:#cc4b40"></span><span><b>Panique</b> — à éviter, peut laisser une trace négative.</span></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Observation</h3>
+        <p>Ajoutez un commentaire facultatif. La zone s'agrandit jusqu'à trois lignes puis peut défiler.</p>
+      </div>
+      <div class="card">
+        <h3>Corriger une erreur</h3>
+        <p>Touchez la croix à côté d'un participant pour le retirer avant l'enregistrement.</p>
+      </div>
+      <div class="card">
+        <h3>Statistiques de la ligne</h3>
+        <p>Ouvrez le menu puis « Statistiques de la ligne » : réservé aux encadrants de cette ligne, pour suivre sa fréquentation.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="link-card">
+      <h3>Un seul lien pour toutes les lignes</h3>
+      <span class="url">apneeattitude.github.io/AppSuiviAA</span>
+      <p>Ouvrez le menu en haut à droite pour choisir L1, L2, L3, L4, LC, DNF1, DNF2, STA1, STA2 ou STAC.</p>
+    </div>
+  </section>
+
+</main>
+
+<footer>AppSuiviAA · saison 2026-2027</footer>
+
+</body>
+</html>
