@@ -155,10 +155,10 @@ spécifique au navigateur.
 Après validation du parcours TEST, `index.html` fournit l'URL unique de
 production : `https://apneeattitude.github.io/AppSuiviAA/?ligne=L2`. Le même
 paramètre ouvre L1, L2, L3, L4, LC, DNF1, DNF2, STA1, STA2 ou STAC. Les anciennes URL
-par ligne sont maintenues pendant la transition. La page `statistiques/` est
-la vue globale de production et n'est pas mentionnée dans le guide. Comme
-`index.html` est à la racine du site, elle charge la feuille commune avec le
-chemin `assets/appsuivi.css` (et non `../assets/...`).
+par ligne sont maintenues pendant la transition. La vue globale de production
+est la popup « Statistiques générales » du menu (voir plus bas), pas une page
+séparée. Comme `index.html` est à la racine du site, elle charge la feuille
+commune avec le chemin `assets/appsuivi.css` (et non `../assets/...`).
 
 Depuis la version Apps Script PROD 61, le même contrôle est actif en
 production. Pour les lignes DNF et STA, les encadrants sont lus dans
@@ -430,13 +430,19 @@ et une validation explicite.
   via l'onglet Personnes du classeur ciblé).
 ## Vue globale des statistiques
 
-La page TEST `_test/statistiques/` appelle l’action Apps Script `statsClub`.
-Cette action est une requête POST authentifiée par le jeton Google de la
-personne connectée. Elle limite l’accès aux adresses de
-`ACCES_STATS_GLOBALES_TEST` et ne retourne que des agrégats par ligne :
-fréquentation moyenne, séances tenues, moyenne par jour de la semaine et
-séances à compléter. Le tableau déplie chaque ligne pour afficher ces détails et propose « Tout déplier / Tout replier ». STAC est incluse dans la vue TEST depuis la création de sa cible. Les noms des participants ne sont jamais retournés. En
-TEST, la vue lit les neuf classeurs PROD uniquement en lecture, car tous les
-classeurs n'ont pas de copie TEST. Le déploiement TEST correspondant est la version 58 (19/09/2026). Avant toute publication en PROD,
-créer une liste d’autorisation PROD contenant Frédéric et les responsables du
-club confirmés, sans confondre ce droit avec le rôle d’encadrant.
+Depuis le 22/09/2026, la vue globale est une popup du menu (`#statsClubDialog`
+dans `_test/index.html` et `index.html`), plus une page séparée — l'ancienne
+page autonome (`statistiques/`, `_test/statistiques/`) a été supprimée, la
+popup réutilisant déjà le jeton obtenu à la connexion sans reconnexion.
+Elle appelle l’action Apps Script `statsClub`, une requête POST authentifiée
+par le jeton Google de la personne connectée. L'accès est réservé aux
+personnes marquées « Responsable club » (colonne de l'onglet Personnes du
+classeur de Paramétrage central, lue par `estResponsableClub_` — jamais une
+liste codée en dur dans `Code.gs`), indépendamment de l'environnement
+consulté. L'action ne retourne que des agrégats par ligne : fréquentation
+moyenne, séances tenues, moyenne par jour de la semaine et séances à
+compléter. Le tableau déplie chaque ligne pour afficher ces détails et
+propose « Tout déplier / Tout replier ». Les noms des participants ne sont
+jamais retournés. Qu'elle soit appelée depuis TEST ou PROD, la vue compare
+toujours les classeurs PROD réels (`CIBLES_STATS_GLOBALES_TEST`, un nom
+resté historique), car tous les classeurs n'ont pas de copie TEST.

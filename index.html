@@ -135,11 +135,11 @@ var LIGNES_PROD = {
   'L3':   { cible: 'PROD-L3', libelle: 'Confirmés', disponible: true },
   'L4':   { cible: 'PROD-L4', libelle: 'Avancés', disponible: true },
   'LC':   { cible: 'PROD-LC', libelle: 'Compétition', disponible: true },
-  'DNF1': { cible: 'PROD-DNF1', libelle: 'Apnée dynamique sans palme débutants', disponible: true },
-  'DNF2': { cible: 'PROD-DNF2', libelle: 'Apnée dynamique sans palme confirmés', disponible: true },
-  'STA1': { cible: 'PROD-STA1', libelle: 'Apnée statique débutants', disponible: true },
-  'STA2': { cible: 'PROD-STA2', libelle: 'Apnée statique confirmés', disponible: true },
-  'STAC':  { cible: 'PROD-STAC', libelle: 'Apnée statique compétition', disponible: true }
+  'DNF1': { cible: 'PROD-DNF1', libelle: 'Dynamique sans palme débutants', disponible: true },
+  'DNF2': { cible: 'PROD-DNF2', libelle: 'Dynamique sans palme confirmés', disponible: true },
+  'STA1': { cible: 'PROD-STA1', libelle: 'Statique débutants', disponible: true },
+  'STA2': { cible: 'PROD-STA2', libelle: 'Statique confirmés', disponible: true },
+  'STAC':  { cible: 'PROD-STAC', libelle: 'Statique compétition', disponible: true }
 };
 var ligneCourante = 'L2';
 // -------------------------------------------------------------------------
@@ -441,8 +441,10 @@ function remplirSeances() {
   seances.forEach(function (s) {
     var opt = document.createElement('option');
     opt.value = s.id;
-    var horaire = (s.heure_debut && s.heure_fin) ? (s.heure_debut + ' - ' + s.heure_fin) : '';
-    opt.textContent = s.numero + ' . ' + s.jour + ' ' + s.date + (horaire ? ' . ' + horaire : '');
+    var horaire = (s.heure_debut && s.heure_fin) ? (s.heure_debut + '–' + s.heure_fin) : '';
+    var jourCourt = ({ lundi: 'lun.', mardi: 'mar.', mercredi: 'mer.', jeudi: 'jeu.', vendredi: 'ven.', samedi: 'sam.', dimanche: 'dim.' })[String(s.jour || '').toLowerCase()] || s.jour;
+    var dateCourte = String(s.date || '').replace(/\/\d{4}$/, '');
+    opt.textContent = s.numero + ' · ' + jourCourt + ' ' + dateCourte + (horaire ? ' · ' + horaire : '');
     sel.appendChild(opt);
   });
   sel.onchange = ouvrirSeance;
