@@ -769,6 +769,14 @@ function construireOptionsZoneConfort_(valeurActuelle) {
   return html;
 }
 
+// Couleur du menu déroulant selon la valeur choisie (échelle à 5 niveaux du
+// 22/09/2026 : bleu/vert/jaune/orange/rouge, cf. assets/appsuivi.css) — un
+// repère visuel immédiat en plus du libellé, sans changer l'interaction
+// (toujours un <select> natif, pas de nouveau composant à gérer).
+function appliquerCouleurZoneConfort_(select, valeur) {
+  select.className = 'qualite zone-confort' + (valeur ? ' zone-' + valeur : '');
+}
+
 // Redimensionne une observation jusqu'à trois lignes. Au-delà, la zone reste
 // compacte et défile verticalement pour éviter que la carte ne prenne toute
 // la hauteur de l'écran.
@@ -799,7 +807,7 @@ function render() {
       '<div class="top"><span>' + p.prenom + ' ' + p.nom +
       (estInvite ? ' <span class="badge-invite">invité</span>' : '') + '</span>' +
       '<button data-id="' + id + '" class="retirer" aria-label="Retirer">&times;</button></div>' +
-      '<select data-id="' + id + '" class="qualite">' +
+      '<select data-id="' + id + '" class="qualite zone-confort">' +
         construireOptionsZoneConfort_(p.qualite) +
       '</select>' +
       '<textarea data-id="' + id + '" class="observation" rows="1" placeholder="Observation (facultatif)"></textarea>';
@@ -816,7 +824,11 @@ function render() {
     };
   });
   wrap.querySelectorAll('.qualite').forEach(function (s) {
-    s.onchange = function () { presents[s.dataset.id].qualite = s.value === '' ? '' : Number(s.value); };
+    appliquerCouleurZoneConfort_(s, s.value);
+    s.onchange = function () {
+      presents[s.dataset.id].qualite = s.value === '' ? '' : Number(s.value);
+      appliquerCouleurZoneConfort_(s, s.value);
+    };
   });
   wrap.querySelectorAll('.observation').forEach(function (i) {
     i.oninput = function () {

@@ -163,3 +163,17 @@ dialog::backdrop { background: rgba(3,20,34,.64); }
   .stats-dialog { position: fixed; inset: auto 0 0 0; margin: 0; width: 100%; max-width: 100%; max-height: 85dvh; border-radius: 25px 25px 0 0; padding-bottom: max(22px, env(safe-area-inset-bottom)); }
   .stats-handle { display: block; width: 36px; height: 4px; margin: 0 auto 14px; border-radius: 99px; background: var(--aa-border); }
 }
+
+/* Zone de confort, échelle à 5 niveaux (22/09/2026) : repère de couleur en
+   plus du libellé (bleu/vert/jaune/orange/rouge), décidé avec Fred. Scopé
+   TEST le temps de valider la migration de données sur TEST-L2, avant
+   promotion PROD (cf. _dev/README.md, convention body.env-test) — les
+   classeurs PROD utilisent encore l'ancienne échelle à 3 valeurs, une
+   couleur non scopée y serait donc fausse (ex. id 3 = Limite sur PROD,
+   Performance sur TEST). */
+body.env-test select.zone-confort { font-weight: 600; transition: background-color .15s ease, color .15s ease; }
+body.env-test select.zone-confort.zone-1 { background: #2f6fed; color: #fff; }
+body.env-test select.zone-confort.zone-2 { background: #2f9e52; color: #fff; }
+body.env-test select.zone-confort.zone-3 { background: #e0a800; color: #172e42; }
+body.env-test select.zone-confort.zone-4 { background: #d9720f; color: #fff; }
+body.env-test select.zone-confort.zone-5 { background: #d64545; color: #fff; }

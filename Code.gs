@@ -285,11 +285,15 @@ function autoriseStatsLigne_(par, email, code) {
 
 // Un « responsable club » est une personne du référentiel central marquée
 // ainsi dans l'onglet Personnes du classeur de Paramétrage (colonne
-// « Responsable club » = oui, cf. preparerResponsablesClub) — jamais une
-// liste codée en dur (demande de Fred, 21/09/2026).
+// « Responsable club » = oui, cf. preparerResponsablesClub), ou responsable
+// en vigueur d'au moins une ligne (onglet Responsables_Ligne, cf.
+// lireParametrage_ — demande de Fred, 22/09/2026) — jamais une liste codée
+// en dur.
 function estResponsableClub_(par, email) {
   return Object.keys(par.personnes).some(function (id) {
-    return par.personnes[id].responsableClub && par.personnes[id].email === email;
+    var p = par.personnes[id];
+    if (p.email !== email) return false;
+    return p.responsableClub || !!par.responsablesLigneIds[id];
   });
 }
 
@@ -1027,8 +1031,34 @@ function lireParametrage_() {
     }
   });
 
+  // Responsables_Ligne : table datée (une ligne par changement, jamais
+  // écrasée) — le responsable en vigueur d'un groupe est celui dont la date
+  // d'effet est la plus récente parmi celles déjà passées ; une date vide
+  // est considérée en vigueur depuis toujours (même convention que les
+  // affectations de créneau ci-dessus). Un responsable de ligne devient
+  // ainsi responsable club pour l'accès aux statistiques générales, sans
+  // ressaisie dans Personnes (demande de Fred, 22/09/2026).
+  var responsablesLigne = {};   // groupe -> { id, debut }
+  var vrl = ssp.getSheetByName('Responsables_Ligne').getDataRange().getValues();
+  for (var r4 = 4; r4 < vrl.length; r4++) {
+    var rowRL = vrl[r4];
+    var groupeRL = rowRL[0];
+    var idRL = rowRL[3];                                     // colonne D
+    var debutRL = rowRL[1] instanceof Date ? rowRL[1] : null; // colonne B
+    if (!groupeRL || !idRL || (debutRL && debutRL > aujourdhui)) continue;
+    var actuel = responsablesLigne[groupeRL];
+    if (!actuel || (debutRL || new Date(0)) > (actuel.debut || new Date(0))) {
+      responsablesLigne[groupeRL] = { id: idRL, debut: debutRL };
+    }
+  }
+  var responsablesLigneIds = {};
+  Object.keys(responsablesLigne).forEach(function (g) {
+    responsablesLigneIds[responsablesLigne[g].id] = true;
+  });
+
   return { saison: saison, personnes: personnes, ordreClub: ordreClub,
-           inscriptions: inscriptions, encadrements: encadrements, estActive: estActive };
+           inscriptions: inscriptions, encadrements: encadrements, estActive: estActive,
+           responsablesLigne: responsablesLigne, responsablesLigneIds: responsablesLigneIds };
 }
 
 // Toutes les inscriptions actives (aujourd'hui) d'une personne, tous groupes
@@ -2195,5 +2225,186 @@ function repererFormuleStatutId_(cible) {
 function repererStatutIdStac() {
   var resultat = repererFormuleStatutId_('PROD-STAC');
   Logger.log(JSON.stringify(resultat));
+  return resultat;
+}
+
+// Diagnostic en lecture seule (22/09/2026) : qui est actuellement responsable
+// de ligne (Responsables_Ligne, tel que résolu par lireParametrage_) et qui
+// en profite pour l'accès aux statistiques générales (estResponsableClub_).
+function diagnostiquerResponsablesClub() {
+  var par = lireParametrage_();
+  var lignes = Object.keys(par.responsablesLigne).map(function (groupe) {
+    var r = par.responsablesLigne[groupe];
+    var p = par.personnes[r.id] || {};
+    return {
+      groupe: groupe, id: r.id, nom: p.nom, prenom: p.prenom, email: p.email,
+      debutEffet: r.debut ? Utilities.formatDate(r.debut, Session.getScriptTimeZone(), 'dd/MM/yyyy') : null
+    };
+  });
+  var responsablesClub = Object.keys(par.personnes).filter(function (id) {
+    var p = par.personnes[id];
+    return p.responsableClub || par.responsablesLigneIds[id];
+  }).map(function (id) {
+    var p = par.personnes[id];
+    return { id: id, nom: p.nom, prenom: p.prenom, email: p.email,
+             responsableClub: !!p.responsableClub, responsableLigne: !!par.responsablesLigneIds[id] };
+  });
+  var resultat = { responsablesDeLigne: lignes, responsablesClubEffectifs: responsablesClub };
+  Logger.log(JSON.stringify(resultat, null, 2));
+  return resultat;
+}
+
+// Diagnostic en lecture seule (22/09/2026), avant migration de la Zone de
+// confort vers l'échelle à 5 niveaux : structure réelle des colonnes de
+// Presences, contenu actuel de la plage nommée ListeZoneConfort, et
+// décompte des libellés effectivement utilisés dans l'historique — pour
+// concevoir la migration sur l'état réel plutôt que sur une supposition.
+function diagnostiquerZoneConfort_(cible) {
+  var ss = ouvrirClasseur_(cible);
+  var shP = ss.getSheetByName(SHEET_PRESENCES);
+  var col = presencesCols_(shP);
+  var rng = ss.getRangeByName('ListeZoneConfort');
+  var resultat = {
+    cible: cible,
+    colonnesPresences: col,
+    listeZoneConfort: rng ? { ref: rng.getA1Notation(), valeurs: rng.getValues() } : null
+  };
+  var colLibelle = col['Zone de confort'];
+  var compte = {};
+  if (colLibelle) {
+    var nRows = shP.getLastRow() - 4;
+    if (nRows > 0) {
+      var valeurs = shP.getRange(5, colLibelle, nRows, 1).getValues();
+      valeurs.forEach(function (row) {
+        var v = String(row[0] || '').trim();
+        if (v) compte[v] = (compte[v] || 0) + 1;
+      });
+    }
+  }
+  resultat.libellesUtilisesDansPresences = compte;
+  Logger.log(JSON.stringify(resultat, null, 2));
+  return resultat;
+}
+
+function diagnostiquerZoneConfortTestL2() {
+  return diagnostiquerZoneConfort_('TEST-L2');
+}
+
+// Migration de la Zone de confort vers l'échelle à 5 niveaux (22/09/2026,
+// décidée avec Fred) : 1 Routine, 2 Maîtrise, 3 Performance, 4 Défi,
+// 5 Panique — remplace 1 Confort, 2 Challenge, 3 Limite. Correspondance
+// retenue pour tout l'historique déjà saisi : Confort→Routine,
+// Challenge→Performance, Limite→Panique (Maîtrise et Défi n'apparaîtront
+// donc que sur les nouvelles saisies).
+//
+// La colonne "Zone de confort (ID)" est une formule qui cherche le libellé
+// de la colonne "Zone de confort" dans ListeZoneConfort (comme pour le
+// Statut de séance) : il ne suffit donc pas de changer la liste de
+// référence, il faut aussi réécrire le texte déjà saisi dans Presences,
+// sinon la formule ne retrouve plus rien (IFERROR → vide).
+//
+// Par sécurité (mêmes principes que les autres migrations de ce fichier) :
+// - refuse si ListeZoneConfort ne contient pas exactement les 3 anciennes
+//   valeurs attendues, dans l'ordre attendu (état différent de celui
+//   diagnostiqué = arrêt, pas de correction à l'aveugle) ;
+// - n'écrit jamais sur l'ancien bloc S3:U5, qui reste en place (inerte,
+//   à nettoyer manuellement si souhaité) : comme migrerStatutsSeance,
+//   la nouvelle liste est ajoutée dans de nouvelles colonnes de l'onglet
+//   Listes, et ListeZoneConfort est repointée dessus ;
+// - refuse si une valeur de Presences ne correspond à aucune des 3
+//   anciennes libellés ni n'est déjà vide (donnée inattendue, à vérifier
+//   à la main plutôt qu'à écraser) ;
+// - vérifie après coup que chaque libellé réécrit produit bien l'ID
+//   attendu.
+function migrerEchelleZoneConfort_(cible) {
+  var CORRESPONDANCE = { 'Confort': 'Routine', 'Challenge': 'Performance', 'Limite': 'Panique' };
+  var NOUVELLE_LISTE = [
+    [1, 'Routine', 'oui'], [2, 'Maîtrise', 'oui'], [3, 'Performance', 'oui'],
+    [4, 'Défi', 'oui'], [5, 'Panique', 'oui']
+  ];
+
+  var ss = ouvrirClasseur_(cible);
+  var shP = ss.getSheetByName(SHEET_PRESENCES);
+  var col = presencesCols_(shP);
+  var colLibelle = col['Zone de confort'];
+  var colId = col['Zone de confort (ID)'];
+  if (!colLibelle || !colId) {
+    throw new Error(cible + ' : colonnes Zone de confort introuvables dans Presences');
+  }
+
+  var ancienneListe = ss.getRangeByName('ListeZoneConfort');
+  if (!ancienneListe) throw new Error(cible + ' : ListeZoneConfort introuvable');
+  var valeursActuelles = ancienneListe.getValues();
+  var attendues = [[1, 'Confort', 'oui'], [2, 'Challenge', 'oui'], [3, 'Limite', 'oui']];
+  var listeInattendue = valeursActuelles.length !== attendues.length ||
+    valeursActuelles.some(function (row, i) {
+      return String(row[0]) !== String(attendues[i][0]) || row[1] !== attendues[i][1] || row[2] !== attendues[i][2];
+    });
+  if (listeInattendue) {
+    throw new Error(cible + ' : ListeZoneConfort ne correspond pas à l\'ancienne échelle ' +
+      'attendue (1 Confort, 2 Challenge, 3 Limite) — état différent de celui diagnostiqué, ' +
+      'aucune écriture effectuée : ' + JSON.stringify(valeursActuelles));
+  }
+
+  var nRows = shP.getLastRow() - 4;
+  var libelles = nRows > 0 ? shP.getRange(5, colLibelle, nRows, 1).getValues() : [];
+  var lignesAModifier = [];
+  for (var i = 0; i < libelles.length; i++) {
+    var v = String(libelles[i][0] || '').trim();
+    if (!v) continue;
+    var nouveau = CORRESPONDANCE[v];
+    if (!nouveau) {
+      throw new Error(cible + ' : libellé de Zone de confort inattendu en ligne ' + (5 + i) +
+        ' (« ' + v + ' ») — ne correspond à aucune des 3 anciennes valeurs, aucune écriture effectuée.');
+    }
+    lignesAModifier.push({ ligne: 5 + i, ancien: v, nouveau: nouveau });
+  }
+
+  // Nouvelle liste dans de nouvelles colonnes de l'onglet Listes, jamais sur
+  // l'ancien bloc — même principe que migrerStatutsSeance.
+  var shListes = ss.getSheetByName(SHEET_LISTES);
+  var colDebut = shListes.getLastColumn() + 2;
+  var refTitre = shListes.getRange(1, 1);
+  var refEntete = shListes.getRange(2, 1);
+  shListes.getRange(1, colDebut).setValue('Zone de confort');
+  shListes.getRange(2, colDebut, 1, 3).setValues([['ID', 'Libellé', 'Actif']]);
+  shListes.getRange(3, colDebut, NOUVELLE_LISTE.length, 3).setValues(NOUVELLE_LISTE);
+  shListes.getRange(1, colDebut, 1, 3)
+    .setBackground(refTitre.getBackground()).setFontColor(refTitre.getFontColor()).setFontWeight('bold');
+  shListes.getRange(2, colDebut, 1, 3)
+    .setBackground(refEntete.getBackground()).setFontColor(refEntete.getFontColor()).setFontWeight('bold');
+  ss.setNamedRange('ListeZoneConfort', shListes.getRange(3, colDebut, NOUVELLE_LISTE.length, 3));
+
+  lignesAModifier.forEach(function (x) {
+    shP.getRange(x.ligne, colLibelle).setValue(x.nouveau);
+  });
+  SpreadsheetApp.flush();
+
+  var idAttendu = {};
+  NOUVELLE_LISTE.forEach(function (row) { idAttendu[row[1]] = row[0]; });
+  var erreurs = [];
+  lignesAModifier.forEach(function (x) {
+    var obtenu = shP.getRange(x.ligne, colId).getValue();
+    var attendu = idAttendu[x.nouveau];
+    if (String(obtenu) !== String(attendu)) {
+      erreurs.push({ ligne: x.ligne, nouveau: x.nouveau, attendu: attendu, obtenu: obtenu });
+    }
+  });
+  if (erreurs.length) {
+    throw new Error(cible + ' : incohérence après migration : ' + JSON.stringify(erreurs));
+  }
+  CacheService.getScriptCache().remove('v2|' + cible + '|data');
+
+  return {
+    cible: cible,
+    liste: shListes.getRange(3, colDebut, NOUVELLE_LISTE.length, 3).getA1Notation(),
+    lignesReecrites: lignesAModifier.length,
+    detail: lignesAModifier
+  };
+}
+
+function migrerEchelleZoneConfortTestL2() {
+  var resultat = migrerEchelleZoneConfort_('TEST-L2');
+  Logger.log(JSON.stringify(resultat, null, 2));
   return resultat;
 }
