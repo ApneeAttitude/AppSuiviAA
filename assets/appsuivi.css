@@ -171,9 +171,9 @@ dialog::backdrop { background: rgba(3,20,34,.64); }
    classeurs PROD utilisent encore l'ancienne échelle à 3 valeurs, une
    couleur non scopée y serait donc fausse (ex. id 3 = Limite sur PROD,
    Performance sur TEST). */
-body.env-test select.zone-confort { font-weight: 600; transition: background-color .15s ease, color .15s ease; }
-body.env-test select.zone-confort.zone-1 { background: #2f6fed; color: #fff; }
-body.env-test select.zone-confort.zone-2 { background: #2f9e52; color: #fff; }
-body.env-test select.zone-confort.zone-3 { background: #e0a800; color: #172e42; }
-body.env-test select.zone-confort.zone-4 { background: #d9720f; color: #fff; }
-body.env-test select.zone-confort.zone-5 { background: #d64545; color: #fff; }
+body.env-test select.zone-confort { font-weight: 600; transition: background-color .15s ease, color .15s ease, border-color .15s ease; border: 1px solid transparent; }
+body.env-test select.zone-confort.zone-1 { background: #d7e6fb; color: #1d3f78; border-color: #b7cff5; }
+body.env-test select.zone-confort.zone-2 { background: #d7f2df; color: #1e6b3f; border-color: #b3e4c2; }
+body.env-test select.zone-confort.zone-3 { background: #fdf2b8; color: #7a5c00; border-color: #f8e28a; }
+body.env-test select.zone-confort.zone-4 { background: #fbe2c4; color: #8a4b0a; border-color: #f5c793; }
+body.env-test select.zone-confort.zone-5 { background: #f9d6d6; color: #8a1f1f; border-color: #f2b3b3; }
