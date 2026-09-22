@@ -164,16 +164,48 @@ dialog::backdrop { background: rgba(3,20,34,.64); }
   .stats-handle { display: block; width: 36px; height: 4px; margin: 0 auto 14px; border-radius: 99px; background: var(--aa-border); }
 }
 
-/* Zone de confort, échelle à 5 niveaux (22/09/2026) : repère de couleur en
-   plus du libellé (bleu/vert/jaune/orange/rouge), décidé avec Fred. Scopé
-   TEST le temps de valider la migration de données sur TEST-L2, avant
-   promotion PROD (cf. _dev/README.md, convention body.env-test) — les
-   classeurs PROD utilisent encore l'ancienne échelle à 3 valeurs, une
-   couleur non scopée y serait donc fausse (ex. id 3 = Limite sur PROD,
-   Performance sur TEST). */
-body.env-test select.zone-confort { font-weight: 600; transition: background-color .15s ease, color .15s ease, border-color .15s ease; border: 1px solid transparent; }
-body.env-test select.zone-confort.zone-1 { background: #d7e6fb; color: #1d3f78; border-color: #b7cff5; }
-body.env-test select.zone-confort.zone-2 { background: #d7f2df; color: #1e6b3f; border-color: #b3e4c2; }
-body.env-test select.zone-confort.zone-3 { background: #fdf2b8; color: #7a5c00; border-color: #f8e28a; }
-body.env-test select.zone-confort.zone-4 { background: #fbe2c4; color: #8a4b0a; border-color: #f5c793; }
-body.env-test select.zone-confort.zone-5 { background: #f9d6d6; color: #8a1f1f; border-color: #f2b3b3; }
+/* Zone de confort, échelle à 5 niveaux (22-23/09/2026) : puce pleine
+   couleur + liste déroulante personnalisée (remplace le <select> natif —
+   un menu natif ouvert ne peut pas être coloré sur mobile, habillage du
+   système). Palette « zones d'effort », choisie avec Fred sur prototype :
+   1 bleu, 2 vert, 3 jaune clair, 4 orange, 5 rouge. Scopé TEST le temps de
+   valider la migration de données sur TEST-L2, avant promotion PROD (cf.
+   _dev/README.md, convention body.env-test) — les classeurs PROD utilisent
+   encore l'ancienne échelle à 3 valeurs, une couleur non scopée y serait
+   donc fausse. */
+body.env-test .zone-confort-control { position: relative; margin-top: 12px; }
+body.env-test .zone-confort-chip {
+  display: flex; align-items: center; gap: 9px; width: 100%; min-height: 46px;
+  padding: 9px 13px; border: 0; border-radius: 13px; cursor: pointer;
+  font: 600 14px Manrope, sans-serif; text-align: left; color: #fff;
+  background: #edf5f8; transition: background-color .15s ease, color .15s ease;
+}
+body.env-test .zone-confort-chip .dot { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,.85); flex: none; }
+body.env-test .zone-confort-chip .lbl { flex: 1; }
+body.env-test .zone-confort-chip .chevron { font-size: 12px; opacity: .9; }
+body.env-test .zone-confort-chip.zone-vide { color: var(--aa-muted); font-weight: 500; }
+body.env-test .zone-confort-chip.zone-vide .dot { background: var(--aa-border); }
+body.env-test .zone-confort-chip.zone-1 { background: #3d8fd1; }
+body.env-test .zone-confort-chip.zone-2 { background: #3ea86b; }
+body.env-test .zone-confort-chip.zone-3 { background: #f3dd47; }
+body.env-test .zone-confort-chip.zone-4 { background: #df8a3a; }
+body.env-test .zone-confort-chip.zone-5 { background: #cc4b40; }
+body.env-test .zone-confort-menu {
+  position: absolute; z-index: 3; left: 0; right: 0; top: calc(100% + 6px);
+  padding: 6px; border-radius: 14px; background: var(--aa-surface);
+  box-shadow: 0 12px 28px rgba(8,47,73,.18); border: 1px solid var(--aa-border);
+}
+body.env-test .zone-confort-menu[hidden] { display: none; }
+body.env-test .zone-confort-opt {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px;
+  border: 0; border-radius: 10px; background: transparent; cursor: pointer;
+  font: 500 14px Manrope, sans-serif; color: var(--aa-text); text-align: left;
+}
+body.env-test .zone-confort-opt:hover, body.env-test .zone-confort-opt:focus-visible { background: var(--aa-page); }
+body.env-test .zone-confort-opt.is-current { font-weight: 700; }
+body.env-test .zone-confort-opt .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--aa-border); }
+body.env-test .zone-confort-opt.zone-1 .dot { background: #3d8fd1; }
+body.env-test .zone-confort-opt.zone-2 .dot { background: #3ea86b; }
+body.env-test .zone-confort-opt.zone-3 .dot { background: #f3dd47; }
+body.env-test .zone-confort-opt.zone-4 .dot { background: #df8a3a; }
+body.env-test .zone-confort-opt.zone-5 .dot { background: #cc4b40; }

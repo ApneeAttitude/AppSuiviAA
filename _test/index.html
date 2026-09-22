@@ -751,31 +751,76 @@ document.getElementById('recherche').addEventListener('input', function (e) {
   });
 });
 
-// Construit les <option> du menu deroulant "Zone de confort" a partir de
-// zonesConfort (chargee depuis l'API, cf. chargerDonnees) plutot que d'une
-// liste codee en dur : changer un libelle cote Sheet se repercute ici sans
-// retouche de ce fichier (09/09/2026, TEST-L2 uniquement pour l'instant).
-// Seules les valeurs actives sont proposees pour une nouvelle saisie, mais
-// une valeur deja selectionnee (meme retiree depuis) reste visible.
-function construireOptionsZoneConfort_(valeurActuelle) {
-  var html = '<option value="">Zone de confort (facultatif)</option>';
-  zonesConfort.forEach(function (z) {
-    var estActuelle = valeurActuelle !== '' && valeurActuelle !== undefined && valeurActuelle !== null &&
-                       Number(z.id) === Number(valeurActuelle);
-    if (!z.actif && !estActuelle) return;
-    html += '<option value="' + z.id + '"' + (estActuelle ? ' selected' : '') + '>' +
-            String(z.libelle).replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</option>';
-  });
-  return html;
+// Sélecteur de zone de confort : puce pleine couleur + liste déroulante
+// personnalisée (23/09/2026, remplace le <select> natif — un menu natif
+// ouvert ne peut pas être coloré sur mobile, habillage du système, cf.
+// prototype validé avec Fred). Toujours piloté par zonesConfort (l'API),
+// aucun libellé ni couleur codés en dur ici — seule la palette (classes
+// zone-1 à zone-5) vit dans assets/appsuivi.css. Seules les valeurs actives
+// sont proposées pour une nouvelle saisie, mais une valeur déjà
+// sélectionnée (même retirée depuis) reste visible.
+function libelleZoneConfort_(valeur) {
+  var z = zonesConfort.filter(function (x) { return Number(x.id) === Number(valeur); })[0];
+  return z ? z.libelle : '';
 }
+function construireChipZoneConfort_(ctrl) {
+  var id = ctrl.dataset.id;
+  var valeurActuelle = presents[id].qualite;
+  var chip = document.createElement('button');
+  chip.type = 'button';
+  chip.innerHTML = '<span class="dot"></span><span class="lbl"></span><span class="chevron">▾</span>';
+  var menu = document.createElement('div');
+  menu.className = 'zone-confort-menu';
+  menu.hidden = true;
 
-// Couleur du menu déroulant selon la valeur choisie (échelle à 5 niveaux du
-// 22/09/2026 : bleu/vert/jaune/orange/rouge, cf. assets/appsuivi.css) — un
-// repère visuel immédiat en plus du libellé, sans changer l'interaction
-// (toujours un <select> natif, pas de nouveau composant à gérer).
-function appliquerCouleurZoneConfort_(select, valeur) {
-  select.className = 'qualite zone-confort' + (valeur ? ' zone-' + valeur : '');
+  function appliquer(valeur) {
+    chip.className = 'zone-confort-chip' + (valeur ? ' zone-' + valeur : ' zone-vide');
+    chip.querySelector('.lbl').textContent = valeur ? libelleZoneConfort_(valeur) : 'Zone de confort (facultatif)';
+  }
+  function fermer() { menu.hidden = true; }
+  function choisir(valeur) {
+    valeurActuelle = valeur;
+    presents[id].qualite = valeur === '' ? '' : Number(valeur);
+    appliquer(valeur);
+    fermer();
+  }
+  function ouvrir() {
+    menu.innerHTML = '';
+    var optVide = document.createElement('button');
+    optVide.type = 'button'; optVide.className = 'zone-confort-opt';
+    optVide.innerHTML = '<span class="dot"></span><span>Zone de confort (facultatif)</span>';
+    optVide.onclick = function () { choisir(''); };
+    menu.appendChild(optVide);
+    zonesConfort.forEach(function (z) {
+      var estActuelle = valeurActuelle !== '' && valeurActuelle !== undefined && valeurActuelle !== null &&
+                         Number(z.id) === Number(valeurActuelle);
+      if (!z.actif && !estActuelle) return;
+      var opt = document.createElement('button');
+      opt.type = 'button';
+      opt.className = 'zone-confort-opt zone-' + z.id + (estActuelle ? ' is-current' : '');
+      opt.innerHTML = '<span class="dot"></span><span>' +
+        String(z.libelle).replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span>';
+      opt.onclick = function () { choisir(z.id); };
+      menu.appendChild(opt);
+    });
+    menu.hidden = false;
+  }
+  chip.onclick = function () { menu.hidden ? ouvrir() : fermer(); };
+
+  appliquer(valeurActuelle);
+  ctrl.appendChild(chip);
+  ctrl.appendChild(menu);
 }
+// Ferme les autres listes ouvertes quand on en ouvre une, et n'importe
+// laquelle au clic ailleurs — un seul écouteur global, posé une fois (pas à
+// chaque render(), qui reconstruit les puces). Pas de stopPropagation côté
+// puce : c'est ce qui permet à ce même écouteur de fermer la liste d'un
+// autre participant en un seul clic sur une nouvelle puce.
+document.addEventListener('click', function (e) {
+  document.querySelectorAll('.zone-confort-menu:not([hidden])').forEach(function (m) {
+    if (!m.parentElement.contains(e.target)) m.hidden = true;
+  });
+});
 
 // Redimensionne une observation jusqu'à trois lignes. Au-delà, la zone reste
 // compacte et défile verticalement pour éviter que la carte ne prenne toute
@@ -807,9 +852,7 @@ function render() {
       '<div class="top"><span>' + p.prenom + ' ' + p.nom +
       (estInvite ? ' <span class="badge-invite">invité</span>' : '') + '</span>' +
       '<button data-id="' + id + '" class="retirer" aria-label="Retirer">&times;</button></div>' +
-      '<select data-id="' + id + '" class="qualite zone-confort">' +
-        construireOptionsZoneConfort_(p.qualite) +
-      '</select>' +
+      '<div class="zone-confort-control" data-id="' + id + '"></div>' +
       '<textarea data-id="' + id + '" class="observation" rows="1" placeholder="Observation (facultatif)"></textarea>';
     wrap.appendChild(div);
     var observation = div.querySelector('.observation');
@@ -823,13 +866,7 @@ function render() {
       render();
     };
   });
-  wrap.querySelectorAll('.qualite').forEach(function (s) {
-    appliquerCouleurZoneConfort_(s, s.value);
-    s.onchange = function () {
-      presents[s.dataset.id].qualite = s.value === '' ? '' : Number(s.value);
-      appliquerCouleurZoneConfort_(s, s.value);
-    };
-  });
+  wrap.querySelectorAll('.zone-confort-control').forEach(construireChipZoneConfort_);
   wrap.querySelectorAll('.observation').forEach(function (i) {
     i.oninput = function () {
       presents[i.dataset.id].observation = i.value;
