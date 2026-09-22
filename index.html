@@ -81,7 +81,7 @@
   <div id="menuLignes"></div>
   <p id="menuSuiviSection" class="menu-section" hidden>Suivi</p>
   <button type="button" id="menuStatsLigne" class="menu-link" hidden>Statistiques de la ligne</button>
-  <a id="menuStatsGenerales" class="menu-link" href="statistiques/" hidden>Statistiques générales <small>Responsables</small></a>
+  <button type="button" id="menuStatsGenerales" class="menu-link" hidden>Statistiques générales <small>Responsables</small></button>
   <p class="menu-section">Aide</p>
   <a class="menu-link" href="guides/Guide-AppSuiviAA.pdf" target="_blank" rel="noopener">Guide d’utilisation</a>
 </dialog>
@@ -94,6 +94,16 @@
   </div>
   <p id="statsRegle" class="stats-rule"></p>
   <div id="statsContenu" aria-live="polite"></div>
+</dialog>
+
+<dialog id="statsClubDialog" class="stats-dialog" aria-labelledby="statsClubTitre">
+  <div class="stats-handle" aria-hidden="true"></div>
+  <div class="stats-heading">
+    <h2 id="statsClubTitre">Statistiques du club</h2>
+    <button type="button" id="statsClubFermer" class="stats-close" aria-label="Fermer les statistiques">✕</button>
+  </div>
+  <p id="statsClubRegle" class="stats-rule"></p>
+  <div id="statsClubContenu" aria-live="polite"></div>
 </dialog>
 
 <dialog id="remplacantDialog" class="replacement-dialog" aria-labelledby="remplacantTitre" aria-describedby="remplacantAide">
@@ -309,11 +319,120 @@ function afficherStatistiques_(stats) {
   }
   contenu.appendChild(blocACompleter);
 }
+// Statistiques générales : réutilise le jeton déjà obtenu à la connexion
+// (aucune reconnexion), affichées en popup plutôt que sur une page à part
+// (demande de Fred, 21/09/2026). Réutilise les mêmes classes CSS que les
+// statistiques de ligne pour la synthèse (stats-summary/stats-kpi) et le
+// détail par jour (stats-row/stats-track/stats-bar/stats-value via
+// ajouterBarresStats_) et la liste des séances à compléter (stats-todo).
+function ouvrirStatistiquesClub_() {
+  var dialog = document.getElementById('statsClubDialog');
+  var contenu = document.getElementById('statsClubContenu');
+  document.getElementById('statsClubRegle').textContent = '';
+  contenu.textContent = 'Chargement des statistiques…';
+  dialog.showModal();
+  fetch(WEB_APP_URL, {
+    method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: 'statsClub', environnement: 'PROD', idToken: idToken })
+  })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (!d.ok) { contenu.textContent = d.error || 'Statistiques indisponibles.'; return; }
+      afficherStatistiquesClub_(d);
+    })
+    .catch(function () { contenu.textContent = 'Impossible de charger les statistiques. Réessayez.'; });
+}
+function afficherStatistiquesClub_(stats) {
+  var contenu = document.getElementById('statsClubContenu');
+  contenu.textContent = '';
+  document.getElementById('statsClubRegle').textContent = stats.regle + '.';
+  var synthese = document.createElement('div'); synthese.className = 'stats-summary';
+  [['Moyenne par séance', libelleMoyenne_(stats.moyenne)], ['Tenues', String(stats.seances) + ' séances'], ['À compléter', String(stats.a_completer) + ' séances']].forEach(function (item) {
+    var carte = document.createElement('div'); carte.className = 'stats-kpi';
+    var nombre = document.createElement('strong'); nombre.textContent = item[1];
+    var libelle = document.createElement('span'); libelle.textContent = item[0];
+    carte.appendChild(nombre); carte.appendChild(libelle); synthese.appendChild(carte);
+  });
+  contenu.appendChild(synthese);
+
+  var titreComparaison = document.createElement('h3'); titreComparaison.className = 'stats-comparison-title'; titreComparaison.textContent = 'Comparaison des lignes';
+  contenu.appendChild(titreComparaison);
+  var outils = document.createElement('div'); outils.className = 'stats-comparison-tools';
+  var toggle = document.createElement('button'); toggle.type = 'button'; toggle.textContent = 'Tout déplier';
+  outils.appendChild(toggle); contenu.appendChild(outils);
+
+  var lignes = (stats.lignes || []).concat((stats.lignes_attente || []).map(function (code) { return { code: code, indisponible: true }; }));
+  var maxMoyenne = Math.max.apply(null, lignes.filter(function (l) { return !l.indisponible; }).map(function (l) { return l.moyenne; })) || 1;
+  var maxJour = Math.max.apply(null, lignes.reduce(function (tous, l) { return tous.concat(l.hebdomadaire || []); }, []).map(function (j) { return j.moyenne; })) || 1;
+
+  var comparaison = document.createElement('div'); comparaison.className = 'stats-comparison';
+  var entete = document.createElement('div'); entete.className = 'stats-comparison-row stats-comparison-head';
+  ['Ligne', 'Fréquentation', 'Tenues', 'À compl.'].forEach(function (texte) { var cellule = document.createElement('span'); cellule.textContent = texte; entete.appendChild(cellule); });
+  comparaison.appendChild(entete);
+  lignes.forEach(function (l) { comparaison.appendChild(creerDetailLigneClub_(l, maxMoyenne, maxJour)); });
+  contenu.appendChild(comparaison);
+
+  function actualiserToggle() {
+    toggle.textContent = comparaison.querySelectorAll('details.stats-line-detail:not([open]):not(.unavailable)').length ? 'Tout déplier' : 'Tout replier';
+  }
+  toggle.onclick = function () {
+    var ouvrir = toggle.textContent === 'Tout déplier';
+    comparaison.querySelectorAll('details.stats-line-detail:not(.unavailable)').forEach(function (d) { d.open = ouvrir; });
+    actualiserToggle();
+  };
+  comparaison.querySelectorAll('details.stats-line-detail:not(.unavailable)').forEach(function (d) { d.addEventListener('toggle', actualiserToggle); });
+  actualiserToggle();
+
+  var note = document.createElement('p'); note.className = 'stats-rule'; note.style.marginTop = '14px';
+  note.textContent = 'Comparaison agrégée par ligne, sans les noms des participants.';
+  contenu.appendChild(note);
+}
+function creerDetailLigneClub_(ligne, maxMoyenne, maxJour) {
+  var detail = document.createElement('details'); detail.className = 'stats-line-detail' + (ligne.indisponible ? ' unavailable' : '');
+  var summary = document.createElement('summary');
+  var nom = document.createElement('span'); nom.className = 'stats-line-name'; nom.textContent = ligne.code;
+  var graphe = document.createElement('div'); graphe.className = 'stats-bar-wrap';
+  if (ligne.indisponible) {
+    graphe.textContent = 'À configurer';
+  } else {
+    var piste = document.createElement('div'); piste.className = 'stats-track';
+    var barre = document.createElement('div'); barre.className = 'stats-bar';
+    barre.style.width = Math.round((ligne.moyenne / maxMoyenne) * 100) + '%'; piste.appendChild(barre);
+    var moyenne = document.createElement('span'); moyenne.className = 'stats-value'; moyenne.textContent = libelleMoyenne_(ligne.moyenne);
+    graphe.appendChild(piste); graphe.appendChild(moyenne);
+  }
+  var tenues = document.createElement('span'); tenues.className = 'stats-number'; tenues.textContent = ligne.indisponible ? '—' : ligne.seances;
+  var aCompleter = document.createElement('span'); aCompleter.className = 'stats-number'; aCompleter.textContent = ligne.indisponible ? '—' : ligne.a_completer;
+  summary.appendChild(nom); summary.appendChild(graphe); summary.appendChild(tenues); summary.appendChild(aCompleter);
+  detail.appendChild(summary);
+  if (ligne.indisponible) return detail;
+
+  var corps = document.createElement('div'); corps.className = 'stats-line-body';
+  var titreJour = document.createElement('h4'); titreJour.textContent = 'Moyenne par jour de la semaine'; corps.appendChild(titreJour);
+  ajouterBarresStats_(corps, ligne.hebdomadaire || [], maxJour);
+  var titreTodo = document.createElement('h4'); titreTodo.textContent = 'Séances à compléter'; corps.appendChild(titreTodo);
+  var aFaire = ligne.seances_a_completer || [];
+  if (!aFaire.length) {
+    var vide = document.createElement('p'); vide.className = 'stats-empty'; vide.textContent = 'Aucune séance passée à compléter.'; corps.appendChild(vide);
+  } else {
+    var liste = document.createElement('ul'); liste.className = 'stats-todo';
+    aFaire.forEach(function (seance) {
+      var item = document.createElement('li');
+      var date = document.createElement('strong'); date.textContent = seance.date;
+      item.appendChild(date); item.appendChild(document.createTextNode(' · ' + seance.encadrant)); liste.appendChild(item);
+    });
+    corps.appendChild(liste);
+  }
+  detail.appendChild(corps);
+  return detail;
+}
 document.getElementById('menuOuvrir').addEventListener('click', function () { renderMenuLignes_(); document.getElementById('menuDialog').showModal(); });
 document.getElementById('menuFermer').addEventListener('click', function () { document.getElementById('menuDialog').close(); });
 document.getElementById('menuDialog').addEventListener('close', function () { document.getElementById('menuOuvrir').focus(); });
 document.getElementById('menuStatsLigne').addEventListener('click', function () { document.getElementById('menuDialog').close(); ouvrirStatistiques_(); });
 document.getElementById('statsFermer').addEventListener('click', function () { document.getElementById('statsDialog').close(); });
+document.getElementById('menuStatsGenerales').addEventListener('click', function () { document.getElementById('menuDialog').close(); ouvrirStatistiquesClub_(); });
+document.getElementById('statsClubFermer').addEventListener('click', function () { document.getElementById('statsClubDialog').close(); });
 
 function remplirSeances() {
   var sel = document.getElementById('seance');

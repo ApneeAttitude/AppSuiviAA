@@ -2002,3 +2002,198 @@ function migrerZonesConfortProd_(cible) {
 function migrerZonesConfortProd20260912() {
   return ['PROD-L1', 'PROD-L2', 'PROD-L3', 'PROD-L4', 'PROD-LC'].map(migrerZonesConfortProd_);
 }
+
+// Purge les séances générées avant la vraie date de début de saison d'une
+// ligne (bug du 21/09/2026 : L1 affichait des « séances à compléter »
+// antérieures à son début réel, faute d'une date de début propre à chaque
+// ligne au moment de la génération du Calendrier).
+//
+// La colonne A (id séance) est une formule (cf. build_suivi.py,
+// write_calendrier_row) : "S" & COUNTIF($B$5:$B{ligne}) & la date. Supprimer
+// des lignes en tête de Calendrier via deleteRows() renumérote donc
+// automatiquement, et correctement, toutes les séances restantes (Google
+// Sheets ajuste seul les références relatives des formules survivantes).
+//
+// Le danger n'est pas là : c'est l'onglet Presences, qui stocke le TEXTE
+// déjà résolu de cette formule au moment d'un enregistrement, sans lien
+// vivant avec elle. Si une présence a déjà été enregistrée, la renumérotation
+// consécutive à la suppression désynchroniserait ce texte de la séance
+// réelle qu'il désignait. On refuse donc toute suppression dès qu'une seule
+// présence existe dans le classeur, plutôt que de vérifier finement quelles
+// séances précises sont concernées — cf. la garde équivalente et pour la
+// même raison dans sync_referentiel.py, init_calendrier().
+function purgerSeancesAvantDate_(cible, dateLimite) {
+  if (!cible) throw new Error('cible manquante, ex. purgerSeancesAvantDate_("PROD-L1", new Date(2026, 9, 1))');
+  if (Object.prototype.toString.call(dateLimite) !== '[object Date]') {
+    throw new Error('dateLimite doit être un objet Date');
+  }
+  var ss = ouvrirClasseur_(cible);
+  var shCalendrier = ss.getSheetByName(SHEET_CALENDRIER);
+  var shPresences = ss.getSheetByName(SHEET_PRESENCES);
+  if (!shCalendrier || !shPresences) throw new Error('onglet Calendrier ou Presences introuvable');
+
+  var presences = shPresences.getDataRange().getValues();
+  for (var p = 4; p < presences.length; p++) {
+    if (presences[p][0] && presences[p][2]) {
+      throw new Error(cible + ' : des présences sont déjà enregistrées (ex. séance "' +
+        presences[p][0] + '") — la suppression décalerait la numérotation des séances et ' +
+        'désynchroniserait ces présences. Aucune modification effectuée.');
+    }
+  }
+
+  var derniereLigne = shCalendrier.getLastRow();
+  var nLignes = Math.max(derniereLigne - 4, 0);
+  var valeurs = nLignes ? shCalendrier.getRange(5, 1, nLignes, 2).getValues() : [];
+  var aSupprimer = [];
+  for (var i = 0; i < valeurs.length; i++) {
+    var id = valeurs[i][0];
+    var date = valeurs[i][1];
+    var estDate = Object.prototype.toString.call(date) === '[object Date]';
+    if (id && estDate && date < dateLimite) {
+      aSupprimer.push({ ligne: 5 + i, id: id, date: date });
+    }
+  }
+  if (!aSupprimer.length) {
+    return { cible: cible, supprimees: 0, message: 'aucune séance antérieure à la date limite' };
+  }
+  // Les séances à purger doivent être contiguës depuis le tout début du
+  // calendrier : un « trou » signalerait une situation imprévue, à vérifier
+  // à la main plutôt qu'à corriger à l'aveugle.
+  for (var k = 0; k < aSupprimer.length; k++) {
+    if (aSupprimer[k].ligne !== 5 + k) {
+      throw new Error(cible + ' : les séances antérieures à la date limite ne sont pas ' +
+        'contiguës depuis le début du calendrier — vérification manuelle nécessaire, ' +
+        'aucune modification effectuée.');
+    }
+  }
+
+  var tz = Session.getScriptTimeZone();
+  var details = aSupprimer.map(function (x) {
+    return { id: x.id, date: Utilities.formatDate(x.date, tz, 'dd/MM/yyyy') };
+  });
+  shCalendrier.deleteRows(aSupprimer[0].ligne, aSupprimer.length);
+  SpreadsheetApp.flush();
+  CacheService.getScriptCache().remove('v2|' + cible + '|data');
+
+  return {
+    cible: cible,
+    supprimees: aSupprimer.length,
+    details: details,
+    premiereSeanceConservee: shCalendrier.getRange(5, 1).getValue()
+  };
+}
+
+function purgerSeancesL1AvantSaison() {
+  var resultat = purgerSeancesAvantDate_('PROD-L1', new Date(2026, 9, 1)); // 01/10/2026
+  Logger.log(JSON.stringify(resultat));
+  return resultat;
+}
+
+// Diagnostic en lecture seule (aucune écriture) : PROD-STAC n'a jamais été
+// couverte par migrerStatutsSeanceLignesConfigurees ni par une fonction
+// preparerStacProd_ dédiée (seules PROD-STA1/STA2 et PROD-DNF1/DNF2 le sont) —
+// bug signalé le 22/09/2026 : "ID du statut non calculé" en changeant le
+// statut de S001. Avant de corriger à l'aveugle, ce diagnostic affiche la
+// valeur ET la formule brute de la colonne Statut (ID) pour les premières
+// lignes, et le contenu réel de la plage nommée ListeStatutsSeance.
+function diagnostiquerStatutId_(cible, nLignes) {
+  var ss = ouvrirClasseur_(cible);
+  var sh = ss.getSheetByName(SHEET_CALENDRIER);
+  var header = sh.getRange(4, 1, 1, sh.getLastColumn()).getValues()[0];
+  var colStatut = header.indexOf('Statut') + 1;
+  var colStatutId = header.indexOf('Statut (ID)') + 1;
+  var n = nLignes || 6;
+  var resultat = {
+    cible: cible, colStatut: colStatut, colStatutId: colStatutId,
+    entetes: header, lignes: []
+  };
+  if (colStatut && colStatutId) {
+    var valeurs = sh.getRange(5, colStatut, n, 1).getValues();
+    var idsValeurs = sh.getRange(5, colStatutId, n, 1).getValues();
+    var idsFormules = sh.getRange(5, colStatutId, n, 1).getFormulas();
+    for (var i = 0; i < n; i++) {
+      resultat.lignes.push({
+        ligne: 5 + i, statut: valeurs[i][0],
+        statutIdValeur: idsValeurs[i][0], statutIdFormule: idsFormules[i][0]
+      });
+    }
+  }
+  var plage = ss.getRangeByName('ListeStatutsSeance');
+  resultat.plageListeStatutsSeance = plage ? plage.getA1Notation() : null;
+  resultat.contenuListe = plage ? plage.getValues() : null;
+  Logger.log(JSON.stringify(resultat, null, 2));
+  return resultat;
+}
+
+function diagnostiquerStatutIdStac() {
+  return diagnostiquerStatutId_('PROD-STAC', 6);
+}
+
+// Réparation ciblée (22/09/2026), d'après diagnostiquerStatutIdStac() :
+// PROD-STAC porte déjà l'en-tête "Statut (ID)", la plage nommée
+// ListeStatutsSeance, et la formule sur l'essentiel de ses ~900 lignes
+// provisionnées — ce qui fait croire à migrerStatutsSeance() qu'elle est
+// déjà migrée (elle ne touche donc à rien). Mais un premier essai de cette
+// fonction a montré que la formule manque précisément sur les toutes
+// premières lignes (S001 et suivantes, celles réellement utilisées),
+// remplacée par la valeur figée 1 — d'où le refus initial (garde-fou "aucune
+// formule ne doit déjà être là", pensé pour une classeur jamais migré, pas
+// pour ce cas mixte). Cette version ne touche donc qu'aux lignes où la
+// formule est réellement absente, jamais à celles qui l'ont déjà.
+function repererFormuleStatutId_(cible) {
+  var ss = ouvrirClasseur_(cible);
+  var sh = ss.getSheetByName(SHEET_CALENDRIER);
+  var header = sh.getRange(4, 1, 1, sh.getLastColumn()).getValues()[0];
+  var colStatut = header.indexOf('Statut') + 1;
+  var colStatutId = header.indexOf('Statut (ID)') + 1;
+  if (colStatut !== 9 || !colStatutId) {
+    throw new Error(cible + ' : structure Calendrier inattendue (Statut/Statut (ID))');
+  }
+  if (!ss.getRangeByName('ListeStatutsSeance')) {
+    throw new Error(cible + ' : ListeStatutsSeance introuvable');
+  }
+  var nRows = sh.getMaxRows() - 4;
+  if (nRows <= 0) return { cible: cible, lignesReparees: 0 };
+
+  var formulesActuelles = sh.getRange(5, colStatutId, nRows, 1).getFormulas();
+  var lignesSansFormule = [];
+  for (var i = 0; i < nRows; i++) {
+    if (!formulesActuelles[i][0]) lignesSansFormule.push(5 + i);
+  }
+  if (!lignesSansFormule.length) {
+    return { cible: cible, lignesReparees: 0, message: 'toutes les lignes ont déjà une formule' };
+  }
+
+  lignesSansFormule.forEach(function (ligne) {
+    sh.getRange(ligne, colStatutId).setFormula(
+      '=IFERROR(INDEX(ListeStatutsSeance;MATCH(I' + ligne + ';INDEX(ListeStatutsSeance;0;2);0);1);"")');
+  });
+  SpreadsheetApp.flush();
+
+  // Vérification : chaque ligne réparée dont le libellé Statut est renseigné
+  // doit désormais afficher l'ID correspondant — jamais 1 partout comme avant.
+  var statuts = lireListeStatutsSeance_(ss);
+  var libelleVersId = {};
+  statuts.forEach(function (s) { libelleVersId[s.libelle] = s.id; });
+  var erreurs = [];
+  lignesSansFormule.forEach(function (ligne) {
+    var label = String(sh.getRange(ligne, colStatut).getValue() || '').trim();
+    if (!label) return;
+    var attendu = libelleVersId[label];
+    var obtenu = sh.getRange(ligne, colStatutId).getValue();
+    if (attendu === undefined || String(obtenu) !== String(attendu)) {
+      erreurs.push({ ligne: ligne, statut: label, attendu: attendu, obtenu: obtenu });
+    }
+  });
+  if (erreurs.length) {
+    throw new Error(cible + ' : incohérence après réparation : ' + JSON.stringify(erreurs.slice(0, 10)));
+  }
+  CacheService.getScriptCache().remove('v2|' + cible + '|data');
+  return { cible: cible, lignesReparees: lignesSansFormule.length, lignes: lignesSansFormule };
+}
+
+function repererStatutIdStac() {
+  var resultat = repererFormuleStatutId_('PROD-STAC');
+  Logger.log(JSON.stringify(resultat));
+  return resultat;
+}
