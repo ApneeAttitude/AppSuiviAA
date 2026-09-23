@@ -11,7 +11,7 @@ Dernière mise à jour : 23/09/2026
 ## Application de suivi des présences (AppSuiviAA)
 
 - [ ] Mettre à jour manuellement les classeurs PROD déjà déployés (L1-STA) suite à ce renommage : en-tête de la colonne F de l'onglet Presences (« Qualité de réalisation » → « Zone de confort ») et liste de validation associée (nouvelles valeurs Dans la zone / En limite / Hors zone) — la génération Python ne touche pas les classeurs déjà créés
-- [ ] Étendre cette analyse d'écarts Craft.me / Inscriptions aux autres lignes (L1, L3, L4, DNF, STA, groupe compétition), non encore comparées
+- [x] Étendre cette analyse d'écarts Craft.me / Inscriptions aux autres lignes (L1, L3, L4, DNF, STA, groupe compétition), non encore comparées — **clos le 23/09/2026 sur décision de Fred** : pas d'audit systématique des lignes restantes, les écarts seront remontés au fil de l'eau s'il y en a.
 - [ ] Tester quelques cas unitaires de la synchronisation (cas simples ciblés) avant de passer à un cas réel complet
 - [ ] Une fois le développement du fichier de paramétrage centralisé terminé : tester la synchronisation sur l'exemple réel du document Craft.me ci-dessus (composition des groupes), après les cas unitaires
 - [ ] Une fois validé : ajouter un menu "Synchroniser" sur le classeur de Paramétrage + un déclencheur `onOpen` (et un filet de sécurité en tâche planifiée nocturne), pour ne plus avoir à lancer la synchronisation depuis l'éditeur Apps Script
