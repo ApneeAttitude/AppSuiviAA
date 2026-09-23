@@ -1056,9 +1056,97 @@ function lireParametrage_() {
     responsablesLigneIds[responsablesLigne[g].id] = true;
   });
 
+  // Regles_Acces_Seances : onglet séparé, table datée (une ligne par règle,
+  // jamais écrasée) — cf. groupesAutorisesLigne_.
+  var reglesAccesSeances = [];
+  var wsRas = ssp.getSheetByName('Regles_Acces_Seances');
+  if (wsRas) {
+    var valRas = wsRas.getDataRange().getValues();
+    for (var r5 = 4; r5 < valRas.length; r5++) {
+      var rowRas = valRas[r5];
+      if (!rowRas[0] || !rowRas[1]) continue;
+      reglesAccesSeances.push({
+        ligne: rowRas[0], groupe: rowRas[1],
+        debut: rowRas[2] instanceof Date ? rowRas[2] : null,
+        fin: rowRas[3] instanceof Date ? rowRas[3] : null,
+        actif: rowRas[4] === 'oui'
+      });
+    }
+  }
+
+  // Groupes_Niveaux : section de l'onglet Referentiels, repérée via le lien
+  // du sommaire (colonne A) plutôt qu'une position figée — une section
+  // précédente peut changer de taille (même principe que table_rows() côté
+  // Python, sync_referentiel.py). Colonnes : Code, Libellé, Discipline,
+  // Rang, Groupe précédent, Bassin, Membre, Dans le MVP, Nombre de lignes,
+  // Début d'effet, Fin d'effet, Actif, Commentaire.
+  var groupesNiveaux = {};
+  var wsRef = ssp.getSheetByName('Referentiels');
+  if (wsRef) {
+    var ligneDebutGN = trouverPremiereLigneSection_(wsRef, 'Groupes de niveaux');
+    if (ligneDebutGN) {
+      var blocGN = wsRef.getRange(ligneDebutGN, 1, 30, 13).getValues();
+      for (var r6 = 0; r6 < blocGN.length; r6++) {
+        var rowGN = blocGN[r6];
+        if (!rowGN[0]) break;
+        groupesNiveaux[rowGN[0]] = {
+          discipline: rowGN[2], membre: rowGN[6],
+          debut: rowGN[9] instanceof Date ? rowGN[9] : null,
+          fin: rowGN[10] instanceof Date ? rowGN[10] : null,
+          actif: rowGN[11] === 'oui'
+        };
+      }
+    }
+  }
+
   return { saison: saison, personnes: personnes, ordreClub: ordreClub,
            inscriptions: inscriptions, encadrements: encadrements, estActive: estActive,
-           responsablesLigne: responsablesLigne, responsablesLigneIds: responsablesLigneIds };
+           responsablesLigne: responsablesLigne, responsablesLigneIds: responsablesLigneIds,
+           reglesAccesSeances: reglesAccesSeances, groupesNiveaux: groupesNiveaux };
+}
+
+// Repère la première ligne de données d'une section de l'onglet
+// Referentiels via son lien de sommaire (colonne A, ex. "Groupes de
+// niveaux" -> '=HYPERLINK("#Referentiels!A245";"Groupes de niveaux")') :
+// robuste à un changement de taille d'une section précédente, jamais une
+// position figée (cf. build_parametrage.py, boucle du sommaire).
+function trouverPremiereLigneSection_(ws, titreSection) {
+  var titres = ws.getRange(1, 1, 15, 1).getValues();
+  for (var r = 0; r < titres.length; r++) {
+    if (String(titres[r][0] || '') === titreSection) {
+      var formule = ws.getRange(r + 1, 1).getFormula();
+      var m = /!A(\d+)/.exec(formule);
+      if (m) return parseInt(m[1], 10);
+    }
+  }
+  return null;
+}
+
+// Deux périodes se recouvrent, bornes incluses ; une borne vide est ouverte
+// (même règle que recouvrent() dans sync_referentiel.py).
+function recouvrent_(debutA, finA, debutB, finB) {
+  var debuts = [debutA, debutB].filter(function (d) { return d; });
+  var fins = [finA, finB].filter(function (d) { return d; });
+  var debut = debuts.length ? debuts.reduce(function (a, b) { return a > b ? a : b; }) : null;
+  var fin = fins.length ? fins.reduce(function (a, b) { return a < b ? a : b; }) : null;
+  return !(debut && fin && debut > fin);
+}
+
+// Groupes de niveau autorisés au moins pendant une partie de la période de
+// vie de la ligne de séances `code` (DNF1, DNF2, STA1, STA2…) — construit
+// le roster du classeur ; la validation fine à la date d'une séance reste
+// appliquée ailleurs (même principe que groupes_autorises() dans
+// sync_referentiel.py, jamais lu jusqu'ici côté Code.gs).
+function groupesAutorisesLigne_(par, code) {
+  var ligne = par.groupesNiveaux[code];
+  if (!ligne || !ligne.actif) return {};
+  var groupes = {};
+  par.reglesAccesSeances.forEach(function (r) {
+    if (r.ligne === code && r.actif && recouvrent_(ligne.debut, ligne.fin, r.debut, r.fin)) {
+      groupes[r.groupe] = true;
+    }
+  });
+  return groupes;
 }
 
 // Toutes les inscriptions actives (aujourd'hui) d'une personne, tous groupes
@@ -1179,10 +1267,10 @@ function synchroniserPersonnesLigne_(par, ligne, cible) {
     capaciteActuelle = ordre.length;
   }
 
-  // 5. Réécrire les colonnes B à G (jamais A ni H) sur toute la
-  //    plage couverte par les formules (au moins ordre.length, au moins
-  //    l'ancienne étendue, pour ne pas laisser de lignes fantômes si le club
-  //    a rétréci).
+  // 5. Réécrire les colonnes B à G (jamais A ni H, sauf exception ci-dessous)
+  //    sur toute la plage couverte par les formules (au moins ordre.length,
+  //    au moins l'ancienne étendue, pour ne pas laisser de lignes fantômes
+  //    si le club a rétréci).
   var nLignes = Math.max(capaciteActuelle, ordre.length, lastRowActuelle - PERS_FIRST_L + 1);
   if (nLignes > 0) {
     var valeurs = [];
@@ -1201,8 +1289,32 @@ function synchroniserPersonnesLigne_(par, ligne, cible) {
     sh.getRange(PERS_FIRST_L, 2, nLignes, 6).setValues(valeurs);
   }
 
+  // 6. Exception, uniquement pour les lignes de séances à effectif défini
+  //    par règle d'accès (DNF1, DNF2, STA1, STA2 — pas STAC, à effectif
+  //    nominatif via Inscriptions, déjà correct avec la formule H
+  //    d'origine) : la formule H figée à la génération du classeur
+  //    (cf. build_suivi.py) ne peut pas connaître les groupes autorisés,
+  //    qui vivent dans Regles_Acces_Seances et peuvent changer en cours de
+  //    saison — colonne H écrasée ici par une valeur calculée à chaque
+  //    synchronisation, plutôt qu'une formule figée (demande de Fred,
+  //    23/09/2026 : « Membre de la ligne » restait vide en permanence sur
+  //    ces 4 classeurs).
+  var estLigneSeancesReglee = ['DNF1', 'DNF2', 'STA1', 'STA2'].indexOf(ligne) !== -1;
+  var autorises = estLigneSeancesReglee ? groupesAutorisesLigne_(par, ligne) : null;
+  if (estLigneSeancesReglee && nLignes > 0) {
+    var valeursH = [];
+    for (var j = 0; j < nLignes; j++) {
+      var groupesRow = j < valeurs.length ? valeurs[j][4] : '';
+      var estMembre = String(groupesRow || '').split(' / ').some(function (g) { return autorises[g]; });
+      valeursH.push([estMembre ? 'oui' : '']);
+    }
+    sh.getRange(PERS_FIRST_L, 8, nLignes, 1).setValues(valeursH);
+  }
+
   var membres = inscriptionsActives.filter(function (c) {
-    return groupesActifsRole_(par, parCle[c].id, parCle[c].role).split(' / ').indexOf(ligne) !== -1;
+    var groupes = groupesActifsRole_(par, parCle[c].id, parCle[c].role).split(' / ');
+    if (autorises) return groupes.some(function (g) { return autorises[g]; });
+    return groupes.indexOf(ligne) !== -1;
   }).length;
   return { ligne: ligne, personnes: ordre.length, membres: membres,
            formulesProlongees: (capaciteActuelle > (derniereA - PERS_FIRST_L + 1)) };
@@ -2440,4 +2552,23 @@ function migrerEchelleZoneConfortToutesLignesProd() {
   });
   Logger.log(JSON.stringify(resultats, null, 2));
   return resultats;
+}
+
+// Diagnostic en lecture seule (23/09/2026), avant d'écrire quoi que ce soit
+// dans les classeurs DNF1/DNF2/STA1/STA2 : vérifie que Groupes_Niveaux et
+// Regles_Acces_Seances sont bien lus depuis le classeur central, et montre
+// les groupes de niveau que groupesAutorisesLigne_ calcule pour chacune de
+// ces 4 lignes (« Membre de la ligne » doit correspondre à ces groupes-là).
+function diagnostiquerMembreLigneSeances() {
+  var par = lireParametrage_();
+  var resultat = {
+    groupesNiveaux: par.groupesNiveaux,
+    reglesAccesSeances: par.reglesAccesSeances,
+    groupesAutorises: {}
+  };
+  ['DNF1', 'DNF2', 'STA1', 'STA2'].forEach(function (ligne) {
+    resultat.groupesAutorises[ligne] = Object.keys(groupesAutorisesLigne_(par, ligne));
+  });
+  Logger.log(JSON.stringify(resultat, null, 2));
+  return resultat;
 }
