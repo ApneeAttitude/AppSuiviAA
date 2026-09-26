@@ -67,8 +67,11 @@ select, input[type=text], .plan-editor, .present-item textarea.observation { wid
 .accordion-toggle .chevron { color: var(--aa-blue); font-size: 22px; transition: transform .15s ease; }
 .accordion-toggle[aria-expanded="true"] .chevron { transform: rotate(90deg); }
 .accordion-content { margin-top: 10px; }
-.plan-toolbar { display: flex; gap: 6px; margin-bottom: 6px; }
+.plan-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
 .plan-toolbar button { padding: 8px 11px; border: 1px solid var(--aa-border); border-radius: 8px; color: var(--aa-blue-dark); background: #f5fafc; font: inherit; cursor: pointer; }
+.plan-color-picker { display: inline-flex; width: 34px; height: 34px; padding: 0; border: 1px solid var(--aa-border); border-radius: 8px; background: #f5fafc; overflow: hidden; cursor: pointer; }
+.plan-color-picker input[type=color] { width: 42px; height: 42px; margin: -4px; padding: 0; border: none; background: none; cursor: pointer; }
+.plan-toolbar select { width: auto; padding: 7px 8px; border-radius: 8px; font-size: 13px; cursor: pointer; }
 .plan-editor { min-height: 110px; max-height: 75vh; padding: 12px; overflow-y: auto; }
 .plan-editor:empty:before { content: attr(data-placeholder); color: #81909a; }
 /* Présences */
