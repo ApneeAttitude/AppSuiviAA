@@ -116,6 +116,7 @@ function doPost(e) {
     if (body.action === 'statsClub') return jsonOut_(getStatsClub_(body));
     if (body.action === 'autorisations') return jsonOut_(getAutorisations_(body));
     if (body.action === 'ligneParDefaut') return jsonOut_(getLigneParDefaut_(body));
+    if (body.action === 'modifierPlanSeance') return jsonOut_(modifierPlanSeance_(body));
     return jsonOut_({ ok: false, error: 'action inconnue : ' + body.action });
   } catch (err) {
     return jsonOut_({ ok: false, error: (err && err.message) || String(err) });
@@ -347,11 +348,57 @@ function getAutorisations_(body) {
   var email = verifierJeton_(body.idToken).toLowerCase();
   var code = cible.replace(/^(TEST|PROD)-/, '');
   var par = lireParametrage_();
+  // pid exposé pour que le front sache, sans nouvel appel, quelles séances
+  // il a lui-même encadrées (colonne O de Calendrier, déjà résolue) —
+  // sert à l'écran "Éditer une séance" (demande de Fred, 26/09/2026).
+  var pid = Object.keys(par.personnes).filter(function (id) {
+    return String(par.personnes[id].email || '').toLowerCase() === email;
+  })[0] || null;
   return {
     ok: true,
+    pid: pid,
     statsLigne: autoriseStatsLigne_(par, email, code),
     statsGenerales: estResponsableClub_(par, email)
   };
+}
+
+// Modifie le plan d'une séance déjà saisie, depuis l'écran "Éditer une
+// séance" (demande de Fred, 26/09/2026) — jamais les présences ni la zone
+// de confort, seulement le plan (décision prise avec Fred : le contenu
+// copiable/modifiable se limite au plan de séance). Restreint à la séance
+// dont le compte connecté est l'encadrant résolu du jour — le remplaçant
+// s'il y en a un ce jour-là, sinon l'encadrant habituel du créneau, colonne
+// O de Calendrier, déjà calculée par formule côté classeur — jamais
+// seulement l'encadrant habituel, pour couvrir aussi les remplacements
+// ponctuels. Vérifie avant d'écrire, comme les autres migrations/écritures
+// restreintes de ce fichier.
+function modifierPlanSeance_(body) {
+  if (!body.seance) throw new Error('séance manquante');
+  var email = verifierJeton_(body.idToken).toLowerCase();
+  var par = lireParametrage_();
+  var pid = Object.keys(par.personnes).filter(function (id) {
+    return String(par.personnes[id].email || '').toLowerCase() === email;
+  })[0];
+  if (!pid) throw new Error('compte non reconnu dans le référentiel');
+
+  var ss = ouvrirClasseur_(body.cible);
+  var sh = ss.getSheetByName(SHEET_CALENDRIER);
+  var nRows = sh.getLastRow() - 4;
+  var plage = sh.getRange(5, 1, nRows, 15).getValues(); // colonnes A à O
+  var idx = -1;
+  for (var i = 0; i < plage.length; i++) {
+    if (plage[i][0] === body.seance) { idx = i; break; }
+  }
+  if (idx === -1) throw new Error('séance introuvable : ' + body.seance);
+  var responsableId = plage[idx][14]; // colonne O : Responsable (ID), déjà résolu
+  if (String(responsableId || '') !== String(pid)) {
+    throw new Error('cette séance n\'a pas été encadrée par vous : modification refusée');
+  }
+
+  ecrirePlanSeance_(ss, body.seance, body.plan || '');
+  SpreadsheetApp.flush();
+  CacheService.getScriptCache().remove('v2|' + body.cible + '|data');
+  return { ok: true };
 }
 
 // La vue globale ne transmet que des agrégats par ligne. Les statistiques
