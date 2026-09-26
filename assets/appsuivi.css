@@ -189,7 +189,11 @@ dialog::backdrop { background: rgba(3,20,34,.64); }
 .zone-confort-chip.zone-4 { background: #df8a3a; }
 .zone-confort-chip.zone-5 { background: #cc4b40; }
 .zone-confort-menu {
-  position: absolute; z-index: 3; left: 0; right: 0; top: calc(100% + 6px);
+  /* z-index au-dessus de .fixed-bar (5) : sinon, pour le dernier participant
+     de la liste, le bandeau « Enregistrer la séance » passe par-dessus la
+     liste ouverte et rend ses dernières options ni visibles ni cliquables
+     (signalé par Fred, 26/09/2026). */
+  position: absolute; z-index: 6; left: 0; right: 0; top: calc(100% + 6px);
   padding: 6px; border-radius: 14px; background: var(--aa-surface);
   box-shadow: 0 12px 28px rgba(8,47,73,.18); border: 1px solid var(--aa-border);
 }
