@@ -282,7 +282,6 @@ var editFiltreJour_ = 'tous';
 var editFiltreMines_ = false;
 var editPlanCopie_ = null;
 
-function echapperHtml_(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function debutSemaineIso_(dateIso) {
   var d = new Date(dateIso + 'T00:00:00');
   var jour = d.getDay(); // 0 = dimanche … 6 = samedi
@@ -319,8 +318,13 @@ function construireFiltresJourEdit_() {
   });
 }
 
+// Le plan de séance est du HTML mis en forme (gras/italique/listes/liens,
+// cf. sanitizerPlan_ plus bas dans ce fichier) : on l'affiche et on l'édite
+// avec le même éditeur riche contenteditable que l'écran de saisie du
+// jour, jamais en texte brut échappé (sinon on voit les balises).
 function construireCarteSeanceEdit_(s) {
   var mine = estMaSeance_(s);
+  var planHtml = sanitizerPlan_(s.plan || '');
   var card = document.createElement('div');
   card.className = 'edit-seance-card' + (mine ? '' : ' is-locked');
   card.innerHTML =
@@ -330,14 +334,20 @@ function construireCarteSeanceEdit_(s) {
         ((s.encadrant_prenom || s.encadrant_nom) ? (s.encadrant_prenom + ' ' + s.encadrant_nom) : 'Encadrant non renseigné') +
       '</span>' +
     '</div>' +
-    '<p class="edit-seance-plan' + (s.plan ? '' : ' is-empty') + '">' + (s.plan ? echapperHtml_(s.plan) : 'Plan de séance vide.') + '</p>' +
+    '<div class="edit-seance-plan"></div>' +
     '<div class="edit-seance-actions">' +
       '<button type="button" class="btn-mini" data-copier>Copier le plan</button>' +
       (mine ? '<button type="button" class="btn-mini is-primary" data-modifier>Modifier</button>'
             : '<span class="edit-lock-note">Encadrée par un autre — lecture seule</span>') +
     '</div>' +
     (mine ? '<div class="edit-panel" data-panel hidden>' +
-      '<textarea data-texte>' + (s.plan ? echapperHtml_(s.plan) : '') + '</textarea>' +
+      '<div class="plan-toolbar">' +
+        '<button type="button" data-cmd="bold" title="Gras"><b>G</b></button>' +
+        '<button type="button" data-cmd="italic" title="Italique"><i>I</i></button>' +
+        '<button type="button" data-cmd="insertUnorderedList" title="Liste à puces">☰</button>' +
+        '<button type="button" data-cmd="link" title="Insérer un lien">🔗</button>' +
+      '</div>' +
+      '<div class="plan-editor" contenteditable="true" data-placeholder="Texte et/ou lien (facultatif)"></div>' +
       '<div class="edit-panel-actions">' +
         '<button type="button" class="btn-mini" data-coller>Coller</button>' +
         '<button type="button" class="btn-mini" data-annuler>Annuler</button>' +
@@ -346,31 +356,67 @@ function construireCarteSeanceEdit_(s) {
       '<p class="edit-panel-msg" data-msg hidden></p>' +
     '</div>' : '');
 
-  card.querySelector('[data-copier]').onclick = function () { editPlanCopie_ = s.plan || ''; };
+  var zonePlan = card.querySelector('.edit-seance-plan');
+  zonePlan.innerHTML = planHtml;
+  if (!zonePlan.textContent.trim()) { zonePlan.classList.add('is-empty'); zonePlan.textContent = 'Plan de séance vide.'; }
+
+  card.querySelector('[data-copier]').onclick = function () { editPlanCopie_ = planHtml; };
 
   if (mine) {
     var panneau = card.querySelector('[data-panel]');
-    var texte = card.querySelector('[data-texte]');
+    var editeur = card.querySelector('.plan-editor');
     var msg = card.querySelector('[data-msg]');
-    card.querySelector('[data-modifier]').onclick = function () { panneau.hidden = !panneau.hidden; };
+
+    card.querySelector('[data-modifier]').onclick = function () {
+      if (panneau.hidden) editeur.innerHTML = planHtml;
+      panneau.hidden = !panneau.hidden;
+    };
+
+    card.querySelectorAll('[data-cmd]').forEach(function (btn) {
+      btn.addEventListener('mousedown', function (e) { e.preventDefault(); });
+      btn.addEventListener('click', function () {
+        editeur.focus();
+        var cmd = btn.dataset.cmd;
+        if (cmd === 'link') {
+          var url = window.prompt('Adresse du lien (https://…)');
+          if (!url) return;
+          if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+          var sel = window.getSelection();
+          if (!sel || sel.isCollapsed) {
+            var titre = window.prompt('Texte du lien à afficher (facultatif)', url);
+            if (titre === null) return;
+            if (!titre.trim()) titre = url;
+            document.execCommand('insertHTML', false,
+              '<a href="' + url.replace(/"/g, '&quot;') + '" target="_blank" rel="noopener noreferrer">' +
+              titre.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</a>');
+          } else {
+            document.execCommand('createLink', false, url);
+          }
+        } else {
+          document.execCommand(cmd, false, null);
+        }
+      });
+    });
+
     card.querySelector('[data-coller]').onclick = function () {
       if (editPlanCopie_ === null) return;
-      texte.value = editPlanCopie_;
+      editeur.innerHTML = editPlanCopie_;
     };
     card.querySelector('[data-annuler]').onclick = function () {
-      texte.value = s.plan || '';
+      editeur.innerHTML = planHtml;
       panneau.hidden = true;
     };
     card.querySelector('[data-enregistrer]').onclick = function () {
       msg.hidden = true;
+      var nouveauPlan = sanitizerPlan_(editeur.innerHTML);
       fetch(WEB_APP_URL, {
         method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'modifierPlanSeance', cible: CIBLE, seance: s.id, plan: texte.value, idToken: idToken })
+        body: JSON.stringify({ action: 'modifierPlanSeance', cible: CIBLE, seance: s.id, plan: nouveauPlan, idToken: idToken })
       })
         .then(function (r) { return r.json(); })
         .then(function (d) {
           if (!d.ok) { msg.textContent = d.error || 'Échec de l\'enregistrement.'; msg.hidden = false; return; }
-          s.plan = texte.value;
+          s.plan = nouveauPlan;
           panneau.hidden = true;
           rendreEditionSeances_();
         })
