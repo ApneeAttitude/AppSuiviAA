@@ -558,18 +558,19 @@ function extraireHoraire_(creneau) {
 function lireCalendrier_(ss) {
   // Fenêtre glissante de séances chargées par l'app : pas la peine de
   // charger tout le calendrier, la saisie se fait sur smartphone séance par
-  // séance. Passé : 45 jours, pour pouvoir revenir en arrière ; futur : 3
-  // jours, pas plus de préparation utile (décision de Fred, 26/09/2026,
-  // remplace les 2 semaines passées/à venir du 05/09/2026). Exception :
-  // une séance passée non renseignée reste chargée quelle que soit son
-  // ancienneté, même hors fenêtre — même critère que "séances à compléter"
-  // dans getStats_ (passée, pas tenue, pas close, aucune présence).
+  // séance. Passé : 45 jours, pour pouvoir revenir en arrière ; futur : 7
+  // jours, pour permettre de préparer une séance une semaine à l'avance
+  // (décision de Fred, 27/09/2026, remplace les 3 jours du 26/09/2026).
+  // Exception : une séance passée non renseignée reste chargée quelle que
+  // soit son ancienneté, même hors fenêtre — même critère que "séances à
+  // compléter" dans getStats_ (passée, pas tenue, pas close, aucune
+  // présence).
   var maintenant = new Date();
   maintenant.setHours(0, 0, 0, 0);
   var debutFenetre = new Date(maintenant);
   debutFenetre.setDate(debutFenetre.getDate() - 45);
   var finFenetre = new Date(maintenant);
-  finFenetre.setDate(finFenetre.getDate() + 4); // exclusif : jusqu'à J+3 inclus
+  finFenetre.setDate(finFenetre.getDate() + 8); // exclusif : jusqu'à J+7 inclus
 
   var tz = Session.getScriptTimeZone();
   var sh = ss.getSheetByName(SHEET_CALENDRIER);
