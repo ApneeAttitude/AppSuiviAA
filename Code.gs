@@ -497,20 +497,6 @@ function lireListeStatutsSeance_(ss) {
   return out;
 }
 
-// Fenêtre glissante de séances chargées par l'app : pas la peine de charger
-// tout le calendrier, la saisie se fait sur smartphone séance par séance —
-// 2 semaines passées + semaine en cours + semaine suivante suffisent
-// (décision du 05/09/2026). Recalculée à chaque appel par rapport à
-// aujourd'hui ; semaine = lundi à dimanche, au sens du fuseau du script.
-function debutSemaine_(date) {
-  var d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  var jour = d.getDay(); // 0 = dimanche ... 6 = samedi
-  var decalageLundi = (jour === 0) ? -6 : (1 - jour);
-  d.setDate(d.getDate() + decalageLundi);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
 // Colonnes de l'onglet Calendrier (cf. build_suivi.py, onglet Calendrier) :
 // A id seance, B date, C jour, D creneau (libelle), ... I statut,
 // ... N responsable remplacant (debut du nom), O responsable (id),
@@ -523,11 +509,20 @@ function extraireHoraire_(creneau) {
 }
 
 function lireCalendrier_(ss) {
-  var debutSemaineEnCours = debutSemaine_(new Date());
-  var debutFenetre = new Date(debutSemaineEnCours);
-  debutFenetre.setDate(debutFenetre.getDate() - 14);  // lundi, 2 semaines avant
-  var finFenetre = new Date(debutSemaineEnCours);
-  finFenetre.setDate(finFenetre.getDate() + 14);       // lundi, 2 semaines après (exclusif)
+  // Fenêtre glissante de séances chargées par l'app : pas la peine de
+  // charger tout le calendrier, la saisie se fait sur smartphone séance par
+  // séance. Passé : 45 jours, pour pouvoir revenir en arrière ; futur : 3
+  // jours, pas plus de préparation utile (décision de Fred, 26/09/2026,
+  // remplace les 2 semaines passées/à venir du 05/09/2026). Exception :
+  // une séance passée non renseignée reste chargée quelle que soit son
+  // ancienneté, même hors fenêtre — même critère que "séances à compléter"
+  // dans getStats_ (passée, pas tenue, pas close, aucune présence).
+  var maintenant = new Date();
+  maintenant.setHours(0, 0, 0, 0);
+  var debutFenetre = new Date(maintenant);
+  debutFenetre.setDate(debutFenetre.getDate() - 45);
+  var finFenetre = new Date(maintenant);
+  finFenetre.setDate(finFenetre.getDate() + 4); // exclusif : jusqu'à J+3 inclus
 
   var tz = Session.getScriptTimeZone();
   var sh = ss.getSheetByName(SHEET_CALENDRIER);
@@ -539,6 +534,19 @@ function lireCalendrier_(ss) {
       responsablesHabituels[String(ref[iRef][0])] = ref[iRef][7];
     }
   }
+
+  var presenceParSeance = {};
+  var shPresences = ss.getSheetByName(SHEET_PRESENCES);
+  if (shPresences) {
+    var presences = shPresences.getDataRange().getValues();
+    for (var p = 4; p < presences.length; p++) {
+      if (presences[p][0] && presences[p][2]) {
+        var clePresence = String(presences[p][0]);
+        presenceParSeance[clePresence] = (presenceParSeance[clePresence] || 0) + 1;
+      }
+    }
+  }
+
   var values = sh.getDataRange().getValues();
   var header = values[3] || [];
   var colStatutId = header.indexOf('Statut (ID)');
@@ -548,7 +556,12 @@ function lireCalendrier_(ss) {
     if (!row[0]) continue;
     var d = row[1];
     var estDate = Object.prototype.toString.call(d) === '[object Date]';
-    if (estDate && (d < debutFenetre || d >= finFenetre)) {
+    var statutBrut = String(row[8] || '').toLowerCase().trim();
+    var statutClos = statutBrut === 'annulée' || statutBrut === 'annulee' ||
+      statutBrut === 'fermée' || statutBrut === 'fermee';
+    var nonRenseignee = estDate && d < maintenant && statutBrut !== 'tenue' &&
+      !statutClos && !(presenceParSeance[String(row[0])] || 0);
+    if (estDate && !nonRenseignee && (d < debutFenetre || d >= finFenetre)) {
       continue; // hors fenêtre : on ne charge pas cette séance
     }
     var horaire = extraireHoraire_(row[3]);
