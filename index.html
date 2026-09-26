@@ -78,6 +78,7 @@
 <dialog id="menuDialog" class="menu-dialog" aria-labelledby="menuTitre">
   <div class="menu-heading"><h2 id="menuTitre">Menu</h2><button type="button" id="menuFermer" class="menu-close" aria-label="Fermer le menu">✕</button></div>
   <p class="menu-section">Mes séances</p>
+  <button type="button" id="menuEditerSeances" class="menu-link" hidden>Éditer une séance</button>
   <div id="menuLignes"></div>
   <p id="menuSuiviSection" class="menu-section" hidden>Suivi</p>
   <button type="button" id="menuStatsLigne" class="menu-link" hidden>Statistiques de la ligne</button>
@@ -94,6 +95,19 @@
   </div>
   <p id="statsRegle" class="stats-rule"></p>
   <div id="statsContenu" aria-live="polite"></div>
+</dialog>
+
+<dialog id="editSeancesDialog" class="stats-dialog" aria-labelledby="editSeancesTitre">
+  <div class="stats-handle" aria-hidden="true"></div>
+  <div class="stats-heading">
+    <h2 id="editSeancesTitre">Éditer une séance</h2>
+    <button type="button" id="editSeancesFermer" class="stats-close" aria-label="Fermer">✕</button>
+  </div>
+  <div class="edit-filters">
+    <div class="edit-filter-row" id="editFiltresJour"></div>
+    <button type="button" id="editFiltreMines" class="edit-filter-chip edit-filter-toggle">Mes séances uniquement</button>
+  </div>
+  <div id="editSeancesContenu" aria-live="polite"></div>
 </dialog>
 
 <dialog id="statsClubDialog" class="stats-dialog" aria-labelledby="statsClubTitre">
@@ -145,6 +159,7 @@ var ligneCourante = 'L2';
 // -------------------------------------------------------------------------
 
 var idToken = null;
+var monPid = null; // renvoyé par l'action "autorisations" (demande de Fred, 26/09/2026)
 var roster = [];
 var seances = [];
 var zonesConfort = [];  // {id, libelle, actif} — cf. Code.gs lireListeZoneConfort_ (09/09/2026)
@@ -224,6 +239,7 @@ function appliquerLigne_(code) {
 // (attribut hidden posé dans le HTML) tant que la réponse n'est pas arrivée.
 function appliquerAutorisations_(autorisations) {
   document.getElementById('menuStatsLigne').hidden = !autorisations.statsLigne;
+  document.getElementById('menuEditerSeances').hidden = !autorisations.statsLigne;
   document.getElementById('menuStatsGenerales').hidden = !autorisations.statsGenerales;
   document.getElementById('menuSuiviSection').hidden = !autorisations.statsLigne && !autorisations.statsGenerales;
 }
@@ -233,7 +249,7 @@ function chargerAutorisations_() {
     body: JSON.stringify({ action: 'autorisations', environnement: 'PROD', cible: CIBLE, idToken: idToken })
   })
     .then(function (r) { return r.json(); })
-    .then(function (d) { if (d.ok) appliquerAutorisations_(d); })
+    .then(function (d) { if (d.ok) { monPid = d.pid || null; appliquerAutorisations_(d); } })
     .catch(function () { /* Menu reste masqué par défaut en cas d'échec. */ });
 }
 function chargerDonnees() {
@@ -248,6 +264,154 @@ function chargerDonnees() {
       remplirSeances();
     })
     .catch(function () { afficherMessage('Erreur de chargement. Réessayez.', true); });
+}
+
+// Écran "Éditer une séance" (demande de Fred, 26/09/2026) : les séances déjà
+// chargées (fenêtre glissante 45 j passés / 3 j futurs), groupées par
+// semaine, avec le plan de séance toujours visible — jamais besoin d'un clic
+// pour l'ouvrir (validé sur prototype). Filtres combinables : jour de la
+// semaine, et "mes séances" (l'encadrant résolu du jour = moi, colonne O de
+// Calendrier déjà calculée côté classeur, exposée ici via responsable_id).
+// Copier/coller ne porte que sur le plan de séance (décision du 26/09/2026) ;
+// l'écriture est revérifiée côté serveur (action modifierPlanSeance), le
+// filtrage ici n'est qu'un confort d'affichage.
+var ORDRE_JOURS_ = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+var editFiltreJour_ = 'tous';
+var editFiltreMines_ = false;
+var editPlanCopie_ = null;
+
+function echapperHtml_(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function debutSemaineIso_(dateIso) {
+  var d = new Date(dateIso + 'T00:00:00');
+  var jour = d.getDay(); // 0 = dimanche … 6 = samedi
+  d.setDate(d.getDate() + ((jour === 0) ? -6 : (1 - jour)));
+  return d;
+}
+function libelleSemaine_(debut) {
+  var fin = new Date(debut); fin.setDate(fin.getDate() + 6);
+  function jj(d) { return String(d.getDate()).padStart(2, '0'); }
+  function mm(d) { return String(d.getMonth() + 1).padStart(2, '0'); }
+  return 'Semaine du ' + jj(debut) + '/' + mm(debut) + ' au ' + jj(fin) + '/' + mm(fin);
+}
+function estMaSeance_(s) { return !!monPid && String(s.responsable_id || '') === String(monPid); }
+
+function construireFiltresJourEdit_() {
+  var wrap = document.getElementById('editFiltresJour');
+  wrap.innerHTML = '';
+  var joursPresents = ORDRE_JOURS_.filter(function (j) {
+    return seances.some(function (s) { return s.jour === j; });
+  });
+  var options = [['tous', 'Tous les jours']].concat(
+    joursPresents.map(function (j) { return [j, j.charAt(0).toUpperCase() + j.slice(1)]; })
+  );
+  options.forEach(function (o) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'edit-filter-chip' + (o[0] === editFiltreJour_ ? ' is-active' : '');
+    b.textContent = o[1];
+    b.onclick = function () {
+      editFiltreJour_ = o[0];
+      construireFiltresJourEdit_();
+      rendreEditionSeances_();
+    };
+    wrap.appendChild(b);
+  });
+}
+
+function construireCarteSeanceEdit_(s) {
+  var mine = estMaSeance_(s);
+  var card = document.createElement('div');
+  card.className = 'edit-seance-card' + (mine ? '' : ' is-locked');
+  card.innerHTML =
+    '<div class="edit-seance-top">' +
+      '<span><strong>' + s.date + '</strong> <span class="edit-seance-jour">' + s.jour + '</span></span>' +
+      '<span class="edit-seance-encadrant' + (mine ? ' is-mine' : '') + '">' +
+        ((s.encadrant_prenom || s.encadrant_nom) ? (s.encadrant_prenom + ' ' + s.encadrant_nom) : 'Encadrant non renseigné') +
+      '</span>' +
+    '</div>' +
+    '<p class="edit-seance-plan' + (s.plan ? '' : ' is-empty') + '">' + (s.plan ? echapperHtml_(s.plan) : 'Plan de séance vide.') + '</p>' +
+    '<div class="edit-seance-actions">' +
+      '<button type="button" class="btn-mini" data-copier>Copier le plan</button>' +
+      (mine ? '<button type="button" class="btn-mini is-primary" data-modifier>Modifier</button>'
+            : '<span class="edit-lock-note">Encadrée par un autre — lecture seule</span>') +
+    '</div>' +
+    (mine ? '<div class="edit-panel" data-panel hidden>' +
+      '<textarea data-texte>' + (s.plan ? echapperHtml_(s.plan) : '') + '</textarea>' +
+      '<div class="edit-panel-actions">' +
+        '<button type="button" class="btn-mini" data-coller>Coller</button>' +
+        '<button type="button" class="btn-mini" data-annuler>Annuler</button>' +
+        '<button type="button" class="btn-mini is-primary" data-enregistrer>Enregistrer</button>' +
+      '</div>' +
+      '<p class="edit-panel-msg" data-msg hidden></p>' +
+    '</div>' : '');
+
+  card.querySelector('[data-copier]').onclick = function () { editPlanCopie_ = s.plan || ''; };
+
+  if (mine) {
+    var panneau = card.querySelector('[data-panel]');
+    var texte = card.querySelector('[data-texte]');
+    var msg = card.querySelector('[data-msg]');
+    card.querySelector('[data-modifier]').onclick = function () { panneau.hidden = !panneau.hidden; };
+    card.querySelector('[data-coller]').onclick = function () {
+      if (editPlanCopie_ === null) return;
+      texte.value = editPlanCopie_;
+    };
+    card.querySelector('[data-annuler]').onclick = function () {
+      texte.value = s.plan || '';
+      panneau.hidden = true;
+    };
+    card.querySelector('[data-enregistrer]').onclick = function () {
+      msg.hidden = true;
+      fetch(WEB_APP_URL, {
+        method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'modifierPlanSeance', cible: CIBLE, seance: s.id, plan: texte.value, idToken: idToken })
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (!d.ok) { msg.textContent = d.error || 'Échec de l\'enregistrement.'; msg.hidden = false; return; }
+          s.plan = texte.value;
+          panneau.hidden = true;
+          rendreEditionSeances_();
+        })
+        .catch(function () { msg.textContent = 'Erreur réseau, réessayez.'; msg.hidden = false; });
+    };
+  }
+  return card;
+}
+
+function rendreEditionSeances_() {
+  var wrap = document.getElementById('editSeancesContenu');
+  wrap.innerHTML = '';
+  var filtrees = seances.filter(function (s) {
+    if (editFiltreJour_ !== 'tous' && s.jour !== editFiltreJour_) return false;
+    if (editFiltreMines_ && !estMaSeance_(s)) return false;
+    return true;
+  });
+  if (!filtrees.length) {
+    var vide = document.createElement('p'); vide.className = 'stats-empty';
+    vide.textContent = 'Aucune séance ne correspond à ces filtres.';
+    wrap.appendChild(vide);
+    return;
+  }
+  var semaineCouranteCle = null;
+  filtrees.forEach(function (s) {
+    var debut = debutSemaineIso_(s.date_iso);
+    var cle = debut.toISOString().slice(0, 10);
+    if (cle !== semaineCouranteCle) {
+      semaineCouranteCle = cle;
+      var entete = document.createElement('div'); entete.className = 'edit-week-head';
+      entete.textContent = libelleSemaine_(debut);
+      wrap.appendChild(entete);
+    }
+    wrap.appendChild(construireCarteSeanceEdit_(s));
+  });
+}
+
+function ouvrirEditionSeances_() {
+  editFiltreJour_ = 'tous'; editFiltreMines_ = false; editPlanCopie_ = null;
+  document.getElementById('editFiltreMines').classList.remove('is-active');
+  construireFiltresJourEdit_();
+  rendreEditionSeances_();
+  document.getElementById('editSeancesDialog').showModal();
 }
 
 function ouvrirStatistiques_() {
@@ -433,6 +597,13 @@ document.getElementById('menuStatsLigne').addEventListener('click', function () 
 document.getElementById('statsFermer').addEventListener('click', function () { document.getElementById('statsDialog').close(); });
 document.getElementById('menuStatsGenerales').addEventListener('click', function () { document.getElementById('menuDialog').close(); ouvrirStatistiquesClub_(); });
 document.getElementById('statsClubFermer').addEventListener('click', function () { document.getElementById('statsClubDialog').close(); });
+document.getElementById('menuEditerSeances').addEventListener('click', function () { document.getElementById('menuDialog').close(); ouvrirEditionSeances_(); });
+document.getElementById('editSeancesFermer').addEventListener('click', function () { document.getElementById('editSeancesDialog').close(); });
+document.getElementById('editFiltreMines').addEventListener('click', function () {
+  editFiltreMines_ = !editFiltreMines_;
+  this.classList.toggle('is-active', editFiltreMines_);
+  rendreEditionSeances_();
+});
 
 function remplirSeances() {
   var sel = document.getElementById('seance');
